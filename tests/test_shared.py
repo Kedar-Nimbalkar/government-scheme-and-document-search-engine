@@ -19,4 +19,3 @@ class SharedFoundationTests(unittest.TestCase):
         self.assertEqual(passage["length"], len(tokens))
         for position, term in enumerate(tokens):
             self.assertEqual(segment["postings"][term], [{"passage_id": 1, "positions": [position]}])
-
