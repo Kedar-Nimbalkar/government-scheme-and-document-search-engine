@@ -1,0 +1,63 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+/Title (Synthetic test fixture \055 not an official document)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 612 792 ]
+/Parent 2 0 R
+/Contents 5 0 R
+>>
+endobj
+5 0 obj
+<<
+/Length 61
+>>
+stream
+q 20 0 0 20 40 40 cm BI /W 1 /H 1 /CS /RGB /BPC 8 ID abc EI Q
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000116 00000 n 
+0000000175 00000 n 
+0000000224 00000 n 
+0000000405 00000 n 
+trailer
+<<
+/Size 6
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+516
+%%EOF
