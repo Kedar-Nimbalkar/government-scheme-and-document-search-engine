@@ -1,0 +1,2 @@
+-r ../../engines/e1/requirements-durable.txt
+bcrypt==5.0.0

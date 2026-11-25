@@ -1,0 +1,29 @@
+{
+  "dataset_id": "team06/synthetic",
+  "revision": "fixture-v1",
+  "license": "Project-generated test fixture",
+  "documents": [
+    {
+      "path": "digital-and-mixed.pdf",
+      "sha256": "7db710416abcee81e5b737b6155cb4bac74325c012e9836a84e13768fae55369",
+      "title": "Housing grant",
+      "scheme_name": "Synthetic Housing Grant",
+      "department": "Synthetic Housing Department",
+      "level": "State",
+      "category": "Housing",
+      "state": "Synthetic State",
+      "artifact_kind": "synthetic"
+    },
+    {
+      "path": "image-only.pdf",
+      "sha256": "89244648a314f7d3df3ac37a99ae4ce3eb560f756e1e5f02d1936e2142de0449",
+      "title": "Image-only fixture",
+      "scheme_name": "Synthetic Housing Grant",
+      "department": "Synthetic Housing Department",
+      "level": "State",
+      "category": "Housing",
+      "state": "Synthetic State",
+      "artifact_kind": "synthetic"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "dataset_id": "shrijayan/gov_myscheme",
+  "revision": "2e7a91a1cd99c40d6a584b237022116fa21d2e88",
+  "license": "apache-2.0",
+  "documents": [
+    {
+      "path": "a-pudu.pdf",
+      "sha256": "53cce583c79085fd39ab98223b8b12551d6d96831e2d165aad58ed65f560d79b",
+      "title": "Aravanaippu",
+      "scheme_name": "Aravanaippu",
+      "department": "Department of Women and Child Development, Puducherry",
+      "level": "State",
+      "category": "Women & Child",
+      "state": "Puducherry",
+      "artifact_kind": "dataset_snapshot",
+      "source_url": "https://py.gov.in/aravanaippu",
+      "evidence_url": "https://py.gov.in/aravanaippu"
+    },
+    {
+      "path": "bbbp.pdf",
+      "sha256": "0db70f5a18c23b7eb2a5df0857c3e052dcb7655a74a4e173401afdbe62e0629d",
+      "title": "Beti Bachao Beti Padhao",
+      "scheme_name": "Beti Bachao Beti Padhao",
+      "department": "Ministry of Women and Child Development",
+      "level": "Central",
+      "category": "Women & Child",
+      "state": "All India",
+      "artifact_kind": "dataset_snapshot",
+      "source_url": "https://wcd.gov.in/offerings/beti-bachao-beti-padhao-scheme",
+      "evidence_url": "https://www.pib.gov.in/Pressreleaseshare.aspx?PRID=1943758&lang=2&reg=48"
+    },
+    {
+      "path": "25-ciss.pdf",
+      "sha256": "183b424cc896d9c5b1e0d386b4568e52ea2dc0032eac1a30a5f3b57e27d92dee",
+      "title": "25% Capital Investment Subsidy Scheme",
+      "scheme_name": "25% Capital Investment Subsidy Scheme",
+      "department": "Directorate of Industries, Lakshadweep",
+      "level": "State",
+      "category": "Business & Entrepreneurship",
+      "state": "Lakshadweep",
+      "artifact_kind": "dataset_snapshot",
+      "source_url": "https://lakshadweep.gov.in/notice/25-capital-investment-subsidy/",
+      "evidence_url": "https://lakshadweep.gov.in/past-notices/circulars/page/84"
+    }
+  ]
+}

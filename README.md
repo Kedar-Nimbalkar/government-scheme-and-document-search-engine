@@ -32,16 +32,18 @@ Express or configure a same-origin reverse proxy.
 
 For PostgreSQL, create the development database locally or run
 `docker compose up -d postgres`. Set DATABASE_URL in .env and apply the
-migrations in order. If the foundation migration has already been applied,
-run only migration 002. With Compose defaults, run the pending files:
+migrations in order. With Compose defaults, run only the files that are pending:
 
 ```powershell
 Get-Content -Raw db/migrations/001_foundation.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 Get-Content -Raw db/migrations/002_contract_v2.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
+Get-Content -Raw db/migrations/003_e3_metadata.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 ```
 
 With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f <migration-file>`
 for each pending file.
+See the [E3 runbook](db/e3/README.md) for development schemas, seed accounts,
+and reviewed PDF import.
 The current health check reports service reachability. It does not check
 database or index readiness. Local data and credentials are ignored by Git.
 
@@ -50,5 +52,6 @@ database or index readiness. Local data and credentials are ignored by Git.
 ```powershell
 npm.cmd test
 npm.cmd run build
-python -m unittest discover -s tests
+python -m pip install -r engines/e1/requirements-dev.txt -r db/e3/requirements.txt
+python -m pytest -q
 ```
