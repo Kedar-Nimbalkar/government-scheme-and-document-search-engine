@@ -1,0 +1,8 @@
+{
+  "name": "@team06/api",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "express": "5.2.1"
+  }
+}

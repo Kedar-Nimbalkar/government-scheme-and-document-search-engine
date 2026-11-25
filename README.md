@@ -1,0 +1,51 @@
+# Government Scheme and Document Search Engine
+
+Team 06's Sprint 2 foundation. See the [engine handoff](docs/sprint-2-handoff.md)
+and [v1 contracts](packages/contracts/v1/README.md).
+
+## Local startup
+
+From the workspace root, use Node 22.12+ or Node 24 LTS, and Python 3.11+.
+Run the following in PowerShell.
+
+```powershell
+Copy-Item .env.example .env
+npm.cmd ci
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Run these commands in three separate terminals from the same directory.
+Activate the Python environment in the E2 terminal.
+
+```powershell
+npm.cmd run dev:e2
+npm.cmd run dev:api
+npm.cmd run dev:web
+```
+
+Open http://127.0.0.1:5173. Run `npm.cmd run smoke` in a fourth terminal.
+The smoke checks cover live FastAPI, Express, and the Vite proxy. For a local
+build served outside Vite, host the built web files on the same origin as
+Express or configure a same-origin reverse proxy.
+
+For PostgreSQL, create the development database locally or run
+`docker compose up -d postgres`. Set DATABASE_URL in .env and apply the
+initial migration to a fresh database. With Compose defaults, run:
+
+```powershell
+Get-Content -Raw db/migrations/001_foundation.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
+```
+
+With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f db/migrations/001_foundation.sql`.
+The current health check reports service reachability. It does not check
+database or index readiness. Local data and credentials are ignored by Git.
+
+## Foundation tests
+
+```powershell
+npm.cmd test
+npm.cmd run build
+python -m unittest discover -s tests
+```
