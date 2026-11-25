@@ -1,0 +1,58 @@
+{
+  "400": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "INVALID REQUEST",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "401": {
+    "error": {
+      "code": "AUTH_REQUIRED",
+      "message": "AUTH REQUIRED",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "403": {
+    "error": {
+      "code": "FORBIDDEN",
+      "message": "FORBIDDEN",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "404": {
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "NOT FOUND",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "409": {
+    "error": {
+      "code": "DUPLICATE",
+      "message": "DUPLICATE",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "413": {
+    "error": {
+      "code": "FILE_TOO_LARGE",
+      "message": "FILE TOO LARGE",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "503": {
+    "error": {
+      "code": "SERVICE_UNAVAILABLE",
+      "message": "SERVICE UNAVAILABLE",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  },
+  "504": {
+    "error": {
+      "code": "SEARCH_TIMEOUT",
+      "message": "SEARCH TIMEOUT",
+      "request_id": "55555555-5555-4555-8555-555555555555"
+    }
+  }
+}

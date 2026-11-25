@@ -11,7 +11,7 @@ from search_shared.index_reader import read_snapshot
 class PdfExtractionTests(unittest.TestCase):
     def test_pdf_fixture_matches_indexed_page(self):
         fixture = Path(__file__).resolve().parents[1] / "fixtures" / "v1"
-        _, segments = read_snapshot(fixture / "index")
+        _, segments = read_snapshot(fixture.parent / "v2" / "index")
         passage = segments[0]["passages"][0]
         self.assertEqual(
             list(extract_pages(fixture / "housing-guidelines.pdf")),

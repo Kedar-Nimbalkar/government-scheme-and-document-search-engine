@@ -1,7 +1,7 @@
 # Government Scheme and Document Search Engine
 
 Team 06's Sprint 2 foundation. See the [engine handoff](docs/sprint-2-handoff.md)
-and [v1 contracts](packages/contracts/v1/README.md).
+and [v2 contracts](packages/contracts/v2/README.md).
 
 ## Local startup
 
@@ -32,13 +32,16 @@ Express or configure a same-origin reverse proxy.
 
 For PostgreSQL, create the development database locally or run
 `docker compose up -d postgres`. Set DATABASE_URL in .env and apply the
-initial migration to a fresh database. With Compose defaults, run:
+migrations in order. If the foundation migration has already been applied,
+run only migration 002. With Compose defaults, run the pending files:
 
 ```powershell
 Get-Content -Raw db/migrations/001_foundation.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
+Get-Content -Raw db/migrations/002_contract_v2.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 ```
 
-With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f db/migrations/001_foundation.sql`.
+With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f <migration-file>`
+for each pending file.
 The current health check reports service reachability. It does not check
 database or index readiness. Local data and credentials are ignored by Git.
 

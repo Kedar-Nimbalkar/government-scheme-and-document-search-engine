@@ -1,0 +1,131 @@
+{
+  "schema_version": 2,
+  "internal": {
+    "health": {
+      "method": "GET",
+      "path": "/health",
+      "success": 200
+    },
+    "search": {
+      "method": "POST",
+      "path": "/internal/search",
+      "success": 200,
+      "response": "response",
+      "request": "request"
+    },
+    "autocomplete": {
+      "method": "GET",
+      "path": "/internal/autocomplete",
+      "success": 200,
+      "response": "autocomplete",
+      "query": "autocompleteRequest"
+    }
+  },
+  "public": {
+    "health": {
+      "method": "GET",
+      "path": "/api/health",
+      "success": 200
+    },
+    "search": {
+      "method": "GET",
+      "path": "/api/search",
+      "success": 200,
+      "response": "response",
+      "query": "publicSearchQuery"
+    },
+    "autocomplete": {
+      "method": "GET",
+      "path": "/api/autocomplete",
+      "success": 200,
+      "response": "autocomplete",
+      "query": "autocompleteRequest"
+    },
+    "filters": {
+      "method": "GET",
+      "path": "/api/filters",
+      "success": 200,
+      "response": "filterOptions"
+    },
+    "document": {
+      "method": "GET",
+      "path": "/api/documents/:id",
+      "success": 200,
+      "response": "document"
+    },
+    "pdf": {
+      "method": "GET",
+      "path": "/api/documents/:id/pdf",
+      "success": 200,
+      "content_type": "application/pdf"
+    },
+    "status": {
+      "method": "GET",
+      "path": "/api/documents/:id/status",
+      "success": 200,
+      "response": "status"
+    },
+    "register": {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "success": 201,
+      "response": "registration",
+      "request": "credentials"
+    },
+    "login": {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "success": 200,
+      "response": "login",
+      "request": "credentials"
+    },
+    "logout": {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "success": 200,
+      "response": "logout"
+    },
+    "me": {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "success": 200,
+      "response": "user"
+    },
+    "bookmarks": {
+      "method": "GET",
+      "path": "/api/bookmarks",
+      "success": 200,
+      "response": "bookmarks"
+    },
+    "createBookmark": {
+      "method": "POST",
+      "path": "/api/bookmarks",
+      "success": 201,
+      "response": "bookmark",
+      "request": "bookmarkInput"
+    },
+    "deleteBookmark": {
+      "method": "DELETE",
+      "path": "/api/bookmarks/:id",
+      "success": 204
+    },
+    "upload": {
+      "method": "POST",
+      "path": "/api/documents",
+      "success": 202,
+      "response": "accepted",
+      "request": "upload",
+      "content_type": "multipart/form-data"
+    }
+  },
+  "error_statuses": [
+    400,
+    401,
+    403,
+    404,
+    409,
+    413,
+    503,
+    504
+  ]
+}

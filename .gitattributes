@@ -1,2 +1,3 @@
 *.pdf binary
 *.docx binary
+fixtures/v2/index/*.json text eol=lf

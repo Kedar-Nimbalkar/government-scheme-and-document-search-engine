@@ -1,8 +1,9 @@
 # Team 06 · Sprint 2 integration handoff
 
 Read the [original integration prompt](sprint-2-integration-prompt.md), this
-brief, the [v1 contracts](../packages/contracts/v1/README.md) and the
-[sample fixtures](../fixtures/v1/) before taking an engine prompt.
+brief, the [v2 contracts](../packages/contracts/v2/README.md) and the
+[v2 fixtures](../fixtures/v2/) before taking an engine prompt. All four engines
+must consume v2. The v1 artifacts remain available for historical comparison.
 
 Read Gate 0, Gate 1 and the Sprint 1 Handbook for scope, requirements and
 algorithms. The revised Sprint 2 and 3 plan was absent from this checkout.
@@ -11,7 +12,7 @@ The integration prompt supplies the stack and sprint allocation in this workspac
 | Owner | Sprint 2 assignment |
 | --- | --- |
 | E1 · Unnati Hiremath | FR-01–03. Build the Python multiprocessing index pipeline with one writer. Coordinate index format with E2 and intake with E3/E4. |
-| E2 · Anvit Naik | FR-04–05 and baseline FR-06–07. Read v1 fixtures while E1/E3 proceed. Implement internal FastAPI search over the shared reader. |
+| E2 · Anvit Naik | FR-04–05 and baseline FR-06–07. Read v2 fixtures while E1/E3 proceed. Implement internal FastAPI search over the shared reader. |
 | E3 · Khushi Devagiri | FR-08 and persistence for FR-11/13. Build PostgreSQL services around the base migration. Coordinate filter reads and upload acceptance. |
 | E4 · Kedar Nimbalkar | FR-11–13. Use fixtures while E1/E3 proceed. Build public Express routes and React UI. |
 

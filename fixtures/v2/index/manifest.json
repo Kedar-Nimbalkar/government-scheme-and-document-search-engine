@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "tokenizer_version": "nfkc-casefold-v1",
+  "generation": 1,
+  "segments": [
+    {"file": "segment-0001.json", "sha256": "ec4e5c92703c70de886d72b07da945c53fbf81e3e2e8ea1dd6c1e65916cfe01d"}
+  ],
+  "next_passage_id": 2,
+  "committed_doc_ids": ["11111111-1111-4111-8111-111111111111"],
+  "stats": {"N": 1, "total_tokens": 3, "avgdl": 3}
+}

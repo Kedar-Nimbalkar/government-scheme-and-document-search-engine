@@ -1,0 +1,918 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "passageId": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:9007199254740992|9[1-9][0-9]{14}|90[1-9][0-9]{13}|900[8-9][0-9]{12}|9007[2-9][0-9]{11}|9007199[3-9][0-9]{8}|90071992[6-9][0-9]{7}|900719925[5-9][0-9]{6}|9007199254[8-9][0-9]{5}|90071992547[5-9][0-9]{4}|900719925474[1-9][0-9]{3}|900719925474099[3-9]|[1-9][0-9]{16,})$",
+          "description": "Only for values above 9007199254740991. Consumers compare as integers."
+        }
+      ]
+    },
+    "pageNo": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "date": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "role": {
+      "enum": [
+        "citizen",
+        "department",
+        "admin"
+      ]
+    },
+    "jobState": {
+      "enum": [
+        "QUEUED",
+        "PARSING",
+        "COMMITTING",
+        "INDEXED",
+        "FAILED"
+      ]
+    },
+    "sourceType": {
+      "enum": [
+        "PDF",
+        "CSV"
+      ]
+    },
+    "versionState": {
+      "enum": [
+        "UNKNOWN",
+        "CURRENT",
+        "SUPERSEDED"
+      ]
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "department": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": []
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "tokenizer_version": {
+          "const": "nfkc-casefold-v1"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+\\.json$"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "file",
+              "sha256"
+            ]
+          }
+        },
+        "next_passage_id": {
+          "$ref": "#/$defs/passageId"
+        },
+        "committed_doc_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uuid"
+          },
+          "uniqueItems": true
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "N": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "total_tokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "avgdl": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "N",
+            "total_tokens",
+            "avgdl"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "tokenizer_version",
+        "generation",
+        "segments",
+        "next_passage_id",
+        "committed_doc_ids",
+        "stats"
+      ]
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "tokenizer_version": {
+          "const": "nfkc-casefold-v1"
+        },
+        "dictionary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "postings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "passage_id": {
+                  "$ref": "#/$defs/passageId"
+                },
+                "positions": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              },
+              "required": [
+                "passage_id",
+                "positions"
+              ]
+            }
+          }
+        },
+        "passages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "passage_id": {
+                "$ref": "#/$defs/passageId"
+              },
+              "doc_id": {
+                "$ref": "#/$defs/uuid"
+              },
+              "page_no": {
+                "$ref": "#/$defs/pageNo"
+              },
+              "text": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "token_spans": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/span"
+                }
+              }
+            },
+            "required": [
+              "passage_id",
+              "doc_id",
+              "page_no",
+              "text",
+              "length",
+              "token_spans"
+            ]
+          }
+        },
+        "df": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "tokenizer_version",
+        "dictionary",
+        "postings",
+        "passages",
+        "df"
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "type": "string",
+          "minLength": 1
+        },
+        "filters": {
+          "$ref": "#/$defs/filters"
+        },
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "default": 10
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "default": 1
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "autocompleteRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "prefix"
+      ]
+    },
+    "publicSearchQuery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["q"],
+      "properties": {
+        "q": {"type": "string", "minLength": 1},
+        "state": {"type": "string"},
+        "department": {"type": "string"},
+        "category": {"type": "string"},
+        "page": {"type": "string", "pattern": "^[1-9][0-9]*$"}
+      }
+    },
+    "filterOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "department": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "category": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "state",
+        "department",
+        "category"
+      ]
+    },
+    "autocomplete": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "suggestions"
+      ]
+    },
+    "hit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scheme_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "passage_id": {
+          "$ref": "#/$defs/passageId"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "snippet": {
+          "type": "string"
+        },
+        "page_no": {
+          "$ref": "#/$defs/pageNo"
+        },
+        "department": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issue_date": {
+          "$ref": "#/$defs/date"
+        },
+        "score": {
+          "type": "number"
+        },
+        "matched_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "match_spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sourceType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superseded": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_doc_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "doc_id",
+        "scheme_id",
+        "passage_id",
+        "title",
+        "snippet",
+        "page_no",
+        "department",
+        "issue_date",
+        "score",
+        "matched_terms",
+        "match_spans",
+        "source_type",
+        "superseded",
+        "current_doc_id"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9_]*$"
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request_id": {
+              "$ref": "#/$defs/uuid"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "request_id"
+          ]
+        }
+      },
+      "required": [
+        "error"
+      ]
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "status": {
+          "$ref": "#/$defs/jobState"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "job_id",
+        "doc_id",
+        "status",
+        "attempts"
+      ]
+    },
+    "accepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "job_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "status": {
+          "const": "QUEUED"
+        }
+      },
+      "required": [
+        "doc_id",
+        "job_id",
+        "status"
+      ]
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "password": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ]
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "username": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "dept_id": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "user_id",
+        "username",
+        "role",
+        "dept_id"
+      ]
+    },
+    "registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "user_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      },
+      "required": [
+        "user_id"
+      ]
+    },
+    "login": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "access_token": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        }
+      },
+      "required": [
+        "access_token",
+        "role"
+      ]
+    },
+    "logout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "logged_out"
+        }
+      },
+      "required": [
+        "status"
+      ]
+    },
+    "bookmarkInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "page_no": {
+          "$ref": "#/$defs/pageNo"
+        }
+      },
+      "required": [
+        "doc_id"
+      ]
+    },
+    "bookmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "bookmark_id": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "page_no": {
+          "$ref": "#/$defs/pageNo"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "bookmark_id",
+        "doc_id",
+        "page_no",
+        "created_at"
+      ]
+    },
+    "upload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "format": "binary"
+        },
+        "scheme_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "circular_no": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issue_date": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "file",
+        "scheme_id",
+        "title",
+        "circular_no",
+        "issue_date"
+      ]
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "scheme_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "circular_no": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "issue_date": {
+          "$ref": "#/$defs/date"
+        },
+        "source_type": {
+          "$ref": "#/$defs/sourceType"
+        },
+        "version_status": {
+          "$ref": "#/$defs/versionState"
+        },
+        "current_doc_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "doc_id",
+        "scheme_id",
+        "title",
+        "circular_no",
+        "issue_date",
+        "source_type",
+        "version_status",
+        "current_doc_id"
+      ]
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "job_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jobState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version_status": {
+          "$ref": "#/$defs/versionState"
+        }
+      },
+      "required": [
+        "doc_id",
+        "job_id",
+        "index_status",
+        "version_status"
+      ]
+    },
+    "bookmarks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/bookmark"
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hit"
+          }
+        },
+        "did_you_mean": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "k": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "results",
+        "did_you_mean",
+        "total",
+        "page",
+        "k",
+        "generation"
+      ]
+    }
+  }
+}

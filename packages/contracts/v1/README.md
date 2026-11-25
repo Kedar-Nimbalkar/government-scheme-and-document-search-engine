@@ -1,5 +1,7 @@
 # Team 06 integration contracts · v1
 
+Historical foundation contract. New engine work consumes [v2](../v2/README.md).
+
 ## Browser → Express
 
 Public URLs stay under `/api`. JSON errors use
