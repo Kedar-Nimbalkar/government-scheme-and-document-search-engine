@@ -1,0 +1,1 @@
+{"department":[{"dept_id":1,"dept_name":"Housing Department","level":"State"}],"scheme":[{"scheme_id":1,"dept_id":1,"scheme_name":"Housing Grant","state":"Karnataka","category":"Housing"}],"document":[{"doc_id":1,"scheme_id":1,"title":"Housing Grant Guidelines","issue_date":"2026-01-15","status":"Active","superseded_by":null}]}

@@ -1,0 +1,5 @@
+{
+  "request": {"q":"housing","state":"Karnataka","page":1},
+  "internal_response": {"total":1,"results":[{"doc_id":1,"snippet":"Housing grant guidelines","page_no":1,"department":"Housing Department","issue_date":"2026-01-15","score":0.28768207245178085,"superseded":false,"current_doc_id":null}]},
+  "public_response": {"total":1,"results":[{"doc_id":1,"snippet":"<mark>Housing</mark> grant guidelines","page_no":1,"department":"Housing Department","issue_date":"2026-01-15","score":0.28768207245178085,"superseded":false,"current_doc_id":null}]}
+}

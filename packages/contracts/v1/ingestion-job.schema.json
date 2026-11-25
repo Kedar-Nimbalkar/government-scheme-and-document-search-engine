@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Indexing job v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "doc_id",
+    "file_path"
+  ],
+  "properties": {
+    "doc_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "file_path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path relative to PDF_ROOT, confined within that root."
+    }
+  }
+}

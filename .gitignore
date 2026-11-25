@@ -1,0 +1,12 @@
+node_modules/
+.npm-cache/
+.venv/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+data/
+dist/
+*.log

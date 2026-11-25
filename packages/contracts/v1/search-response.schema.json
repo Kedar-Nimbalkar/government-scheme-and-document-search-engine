@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Search response v1",
+  "type": "object",
+  "required": [
+    "total",
+    "results"
+  ],
+  "properties": {
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "did_you_mean": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "doc_id",
+          "snippet",
+          "page_no",
+          "department",
+          "issue_date",
+          "score",
+          "superseded",
+          "current_doc_id"
+        ],
+        "properties": {
+          "doc_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "page_no": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "department": {
+            "type": "string"
+          },
+          "issue_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "score": {
+            "type": "number"
+          },
+          "superseded": {
+            "type": "boolean"
+          },
+          "current_doc_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        }
+      }
+    }
+  }
+}
