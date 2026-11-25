@@ -70,6 +70,14 @@ generated request UUID. Use 503 for an unavailable dependency or exhausted
 capacity and 504 for search timeout. Health exposes contract_version and
 Express rejects an incompatible internal service version.
 
+Public search accepts optional `k` and adds nullable scheme name, state,
+category, and a PDF URL to each hit. A bookmark targets either a document
+with an optional page or a scheme. Staff document and scheme lists use
+`GET /api/documents` and `GET /api/schemes`. Administrators use
+`GET/POST /api/admin/users` to view accounts and provision department users.
+Upload uses `POST /api/documents`, and job status uses the existing
+`GET /api/documents/:id/status` with the job UUID and a scoped failure reason.
+
 ## PostgreSQL and job ownership
 
 E3 owns migrations, the Python [read repository](../../search_shared/search_shared/metadata.py)

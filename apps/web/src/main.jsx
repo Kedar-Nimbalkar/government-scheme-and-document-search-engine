@@ -1,25 +1,81 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CONTRACT_VERSION, PUBLIC_ENDPOINTS } from '../../../packages/contracts/v2/http.js';
+import { Account, Bookmarks } from './Account.jsx';
+import { Dashboard } from './Dashboard.jsx';
+import { Search } from './Search.jsx';
+import { api } from './api.js';
+import './style.css';
 
 function App() {
-  const [status, setStatus] = useState('Checking services…');
+  const [location, setLocation] = useState(window.location.hash.slice(1));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [route, params] = location.split('?', 2);
+  const staff = user?.role === 'admin' || user?.role === 'department';
+
   useEffect(() => {
+    const navigation = () => setLocation(window.location.hash.slice(1));
+    const expire = () => setUser(null);
+    window.addEventListener('hashchange', navigation);
+    window.addEventListener('session-expired', expire);
     const controller = new AbortController();
-    fetch(PUBLIC_ENDPOINTS.health.path, { signal: controller.signal })
-      .then(async (response) => {
-        const health = await response.json();
-        setStatus(response.ok && health.status === 'ok' && health.contract_version === CONTRACT_VERSION
-          ? 'API and query service are reachable.'
-          : 'A service is unavailable.');
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') setStatus('Could not reach the API.');
-      });
-    return () => controller.abort();
+    api('/auth/me', { signal: controller.signal }).then(({ data }) => setUser(data))
+      .catch((failure) => { if (!controller.signal.aborted && failure.status !== 401) setError(failure.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => {
+      controller.abort();
+      window.removeEventListener('hashchange', navigation);
+      window.removeEventListener('session-expired', expire);
+    };
   }, []);
 
-  return <><h1>Government Scheme and Document Search Engine</h1><p role="status">{status}</p></>;
+  function signedIn(profile) {
+    setUser(profile); setError('');
+    window.location.hash = profile.role === 'citizen' ? 'search' : 'dashboard';
+  }
+  async function signOut() {
+    setError('');
+    try { await api('/auth/logout', { method: 'POST' }); }
+    catch (failure) {
+      if (failure.status !== 401) { setError(failure.message); return; }
+    }
+    setUser(null);
+    window.location.hash = 'search';
+  }
+
+  let page;
+  if (route === 'login' || route === 'register') {
+    page = <Account key={route} registration={route === 'register'} onSignedIn={signedIn} />;
+  } else if (route === 'bookmarks' || route === 'dashboard') {
+    if (loading) page = <p role="status">Checking your account…</p>;
+    else if (!user) page = <p className="panel"><a href="#login">Sign in</a> to continue.</p>;
+    else if (route === 'bookmarks') page = <Bookmarks />;
+    else if (staff) page = <Dashboard user={user} />;
+    else page = <p role="alert">A department or administrator account is required.</p>;
+  } else {
+    page = <Search key={location} user={user} initialQuery={new URLSearchParams(params).get('q') || ''} />;
+  }
+  return <>
+    <header>
+      <div className="header-inner">
+        <a className="brand" href="#search">Government Scheme and Document Search Engine</a>
+        <nav aria-label="Main navigation">
+          <a href="#search">Search</a>
+          {user ? <>
+            <a href="#bookmarks">Bookmarks</a>
+            {staff && <a href="#dashboard">Dashboard</a>}
+            <span className="meta">{user.username}</span>
+            <button className="secondary" onClick={signOut}>Sign out</button>
+          </> : !loading && <><a href="#login">Sign in</a><a href="#register">Register</a></>}
+        </nav>
+      </div>
+    </header>
+    <main>
+      {error && <p role="alert" className="error">{error}</p>}
+      {page}
+    </main>
+  </>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);

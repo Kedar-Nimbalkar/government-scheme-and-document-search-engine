@@ -2,7 +2,7 @@
 
 ## Database setup and runtime connections
 
-Apply migrations 001, 002, 003, and 004 in order as the schema owner. Then
+Apply migrations 001 through 005 in order as the schema owner. Then
 run [runtime-roles.sql](../db/runtime-roles.sql) with the application schema
 first in `search_path`. The provisioning account needs permission to create
 roles. The script creates NOLOGIN permission groups and grants access to

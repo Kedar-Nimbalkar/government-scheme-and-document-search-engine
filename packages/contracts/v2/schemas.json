@@ -373,7 +373,8 @@
       "additionalProperties": false,
       "required": ["q"],
       "properties": {
-        "q": {"type": "string", "minLength": 1},
+        "q": {"type": "string", "minLength": 1, "maxLength": 512},
+        "k": {"type": "string", "pattern": "^(?:[1-9]|[1-4][0-9]|50)$"},
         "state": {"type": "string"},
         "department": {"type": "string"},
         "category": {"type": "string"},
@@ -429,6 +430,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "scheme_name": {"type": ["string", "null"]},
+        "state": {"type": ["string", "null"]},
+        "category": {"type": ["string", "null"]},
+        "pdf_url": {"type": ["string", "null"]},
         "doc_id": {
           "$ref": "#/$defs/uuid"
         },
@@ -712,12 +717,14 @@
         "doc_id": {
           "$ref": "#/$defs/uuid"
         },
+        "scheme_id": {"$ref": "#/$defs/uuid"},
         "page_no": {
           "$ref": "#/$defs/pageNo"
         }
       },
-      "required": [
-        "doc_id"
+      "oneOf": [
+        {"required": ["doc_id"], "not": {"required": ["scheme_id"]}},
+        {"required": ["scheme_id"], "not": {"required": ["doc_id"]}, "properties": {"page_no": {"type": "null"}}}
       ]
     },
     "bookmark": {
@@ -730,8 +737,12 @@
           "maximum": 9007199254740991
         },
         "doc_id": {
-          "$ref": "#/$defs/uuid"
+          "anyOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]
         },
+        "scheme_id": {"anyOf": [{"$ref": "#/$defs/uuid"}, {"type": "null"}]},
+        "title": {"type": ["string", "null"]},
+        "scheme_name": {"type": ["string", "null"]},
+        "pdf_url": {"type": ["string", "null"]},
         "page_no": {
           "$ref": "#/$defs/pageNo"
         },
@@ -837,6 +848,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "failure_reason": {"type": ["string", "null"]},
         "doc_id": {
           "$ref": "#/$defs/uuid"
         },

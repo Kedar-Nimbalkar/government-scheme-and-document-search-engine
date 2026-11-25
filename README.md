@@ -13,19 +13,21 @@ Copy-Item .env.example .env
 npm.cmd ci
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt -r engines/e2/requirements.txt
+python -m pip install -r requirements.txt -r engines/e2/requirements.txt -r db/e3/requirements.txt
 ```
 
-Run these commands in three separate terminals from the same directory.
-Activate the Python environment in the E2 terminal.
+After configuring the database roles and JWT secret in the [E4 runbook](apps/api/README.md),
+run these commands in four terminals. Activate the Python environment in the
+E1, E2 and API terminals.
 
 ```powershell
+npm.cmd run dev:e1
 npm.cmd run dev:e2
 npm.cmd run dev:api
 npm.cmd run dev:web
 ```
 
-Open http://127.0.0.1:5173. Run `npm.cmd run smoke` in a fourth terminal.
+Open http://127.0.0.1:5173. Run `npm.cmd run smoke` in another terminal.
 The smoke checks cover live FastAPI, Express, and the Vite proxy. For a local
 build served outside Vite, host the built web files on the same origin as
 Express or configure a same-origin reverse proxy.
@@ -39,6 +41,7 @@ Get-Content -Raw db/migrations/001_foundation.sql | docker compose exec -T postg
 Get-Content -Raw db/migrations/002_contract_v2.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 Get-Content -Raw db/migrations/003_e3_metadata.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 Get-Content -Raw db/migrations/004_e3_services.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
+Get-Content -Raw db/migrations/005_e4_access.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 ```
 
 With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f <migration-file>`
@@ -47,8 +50,10 @@ See the [E3 runbook](db/e3/README.md) for development schemas, seed accounts,
 and reviewed PDF import.
 See the [persistence handoff](docs/sprint-2-e3-persistence.md) for runtime
 role provisioning and E1, E2, and E4 connections.
-The current health check reports service reachability. It does not check
-database or index readiness. Local data and credentials are ignored by Git.
+See the [E4 runbook](apps/api/README.md) for the full application startup,
+safe seed credentials, and an upload-to-bookmark demonstration.
+Health checks PostgreSQL and E2 reachability. Local data and credentials
+are ignored by Git.
 
 ## Foundation tests
 

@@ -95,6 +95,85 @@ export class E3Repository {
     return one(this.pool, `SELECT ${PROFILE} FROM app_user WHERE user_id=$1`, [userId]);
   }
 
+  async startSession(tokenId, userId, expiresAt) {
+    await this.pool.query('DELETE FROM e4_session WHERE expires_at <= now()');
+    await this.pool.query('INSERT INTO e4_session (token_id,user_id,expires_at) VALUES ($1,$2,$3)',
+      [tokenId, userId, expiresAt]);
+  }
+
+  findSession(tokenId, userId) {
+    return one(this.pool, `
+      SELECT u.user_id,u.username,u.role,u.dept_id
+      FROM e4_session j JOIN app_user u USING (user_id)
+      WHERE j.token_id=$1 AND j.user_id=$2 AND j.expires_at>now()
+    `, [tokenId, userId]);
+  }
+
+  endSession(tokenId, userId) {
+    return this.pool.query('DELETE FROM e4_session WHERE token_id=$1 AND user_id=$2', [tokenId, userId]);
+  }
+
+  async listAccounts(actorId) {
+    const { rows: users } = await this.pool.query(`
+      SELECT u.user_id,u.username,u.role,u.dept_id FROM app_user u
+      WHERE EXISTS (SELECT 1 FROM app_user a WHERE a.user_id=$1 AND a.role='admin')
+      ORDER BY u.username
+    `, [actorId]);
+    const { rows: departments } = await this.pool.query(`
+      SELECT dept_id,dept_name,level FROM department
+      WHERE EXISTS (SELECT 1 FROM app_user a WHERE a.user_id=$1 AND a.role='admin')
+      ORDER BY dept_name,dept_id
+    `, [actorId]);
+    return { users, departments };
+  }
+
+  async provisionDepartment(actorId, { username, passwordHash, deptId }) {
+    try {
+      return await one(this.pool, 'SELECT * FROM e4_provision_department($1,$2,$3,$4)',
+        [actorId, username, passwordHash, deptId]);
+    } catch (error) {
+      if (error.code === '23505') throw new PersistenceError('DUPLICATE', 'Username already exists');
+      if (error.code === '23503') throw new PersistenceError('INVALID_DEPARTMENT', 'Unknown department');
+      if (error.code === '42501') throw new PersistenceError('FORBIDDEN', 'Administrator required');
+      throw new PersistenceError('PERSISTENCE_UNAVAILABLE', 'Account could not be created');
+    }
+  }
+
+  canUpload(userId, schemeId) {
+    return one(this.pool, CAN_UPLOAD, [userId, schemeId]);
+  }
+
+  async listUploadSchemes(userId) {
+    const { rows } = await this.pool.query(`
+      SELECT s.scheme_id,s.scheme_name,s.state,s.category,s.dept_id,p.dept_name AS department
+      FROM scheme s JOIN department p USING (dept_id) CROSS JOIN app_user u
+      WHERE u.user_id=$1 AND (u.role='admin' OR (u.role='department' AND u.dept_id=s.dept_id))
+      ORDER BY s.scheme_name,s.scheme_id
+    `, [userId]);
+    return rows;
+  }
+
+  async listUploads(userId) {
+    const { rows } = await this.pool.query(`
+      SELECT d.doc_id,d.scheme_id,d.title,d.source_type,s.scheme_name,j.job_id,j.status AS index_status,
+             j.error AS failure_reason,j.updated_at,d.version_status
+      FROM document d JOIN scheme s USING (scheme_id)
+      LEFT JOIN ingestion_job j USING (doc_id) CROSS JOIN app_user u
+      WHERE u.user_id=$1 AND (u.role='admin' OR (
+        u.role='department' AND u.dept_id=s.dept_id AND d.uploaded_by=u.user_id
+      ))
+      ORDER BY j.created_at DESC NULLS LAST,d.doc_id
+    `, [userId]);
+    return rows;
+  }
+
+  async searchMetadata(docIds) {
+    const { rows } = await this.pool.query(`
+      SELECT doc_id,scheme_name,state,category FROM e3_indexed_document WHERE doc_id=ANY($1::uuid[])
+    `, [docIds]);
+    return new Map(rows.map((row) => [row.doc_id, row]));
+  }
+
   createBookmark(userId, { docId = null, schemeId = null, pageNo = null }) {
     return one(this.pool, `
       INSERT INTO bookmark (user_id,doc_id,scheme_id,page_no) VALUES ($1,$2,$3,$4)
@@ -107,7 +186,11 @@ export class E3Repository {
 
   async listBookmarks(userId) {
     const { rows } = await this.pool.query(`
-      SELECT ${BOOKMARK} FROM bookmark WHERE user_id=$1 ORDER BY created_at DESC, bookmark_id DESC
+      SELECT b.bookmark_id,b.doc_id,b.scheme_id,b.page_no,b.created_at,d.title,d.source_type,
+             s.scheme_name
+      FROM bookmark b LEFT JOIN document d ON d.doc_id=b.doc_id
+      LEFT JOIN scheme s ON s.scheme_id=coalesce(b.scheme_id,d.scheme_id)
+      WHERE b.user_id=$1 ORDER BY b.created_at DESC,b.bookmark_id DESC
     `, [userId]);
     return rows;
   }
@@ -148,14 +231,15 @@ export class E3Repository {
   async getDocumentStatus(docId, { userId = null, requestId = null } = {}) {
     const ids = await committedDocumentIds(this.indexRoot);
     const status = await one(this.pool, `
-      SELECT d.doc_id,j.job_id,j.status AS index_status,d.version_status
+      SELECT d.doc_id,j.job_id,j.status AS index_status,d.version_status,
+        CASE WHEN u.role='admin' OR (u.role='department' AND u.dept_id=s.dept_id AND d.uploaded_by=u.user_id)
+             THEN j.error END AS failure_reason
       FROM document d LEFT JOIN ingestion_job j USING (doc_id)
+      JOIN scheme s ON s.scheme_id=d.scheme_id
+      LEFT JOIN app_user u ON u.user_id=$3
       WHERE d.doc_id=$1 AND (
         (j.status='INDEXED' AND d.doc_id=ANY($2::uuid[]))
-        OR EXISTS (
-          SELECT 1 FROM app_user u JOIN scheme s ON s.scheme_id=d.scheme_id
-          WHERE u.user_id=$3 AND (u.role='admin' OR (u.role='department' AND u.dept_id=s.dept_id))
-        )
+        OR u.role='admin' OR (u.role='department' AND u.dept_id=s.dept_id AND d.uploaded_by=u.user_id)
       )
     `, [docId, ids, userId]);
     if (!status && userId) {
@@ -273,5 +357,6 @@ export class E3Repository {
 
 export function createE3Repository({ connectionString, pdfRoot, indexRoot }) {
   if (!connectionString || !pdfRoot || !indexRoot) throw new Error('E4 database URL, PDF root, and index root are required');
-  return new E3Repository({ pool: new Pool({ connectionString }), pdfRoot, indexRoot });
+  return new E3Repository({ pool: new Pool({ connectionString, connectionTimeoutMillis: 2000, statement_timeout: 5000 }),
+    pdfRoot, indexRoot });
 }

@@ -118,6 +118,18 @@
       "response": "accepted",
       "request": "upload",
       "content_type": "multipart/form-data"
+    },
+    "uploads": {
+      "method": "GET", "path": "/api/documents", "success": 200
+    },
+    "uploadSchemes": {
+      "method": "GET", "path": "/api/schemes", "success": 200
+    },
+    "adminUsers": {
+      "method": "GET", "path": "/api/admin/users", "success": 200
+    },
+    "provisionDepartment": {
+      "method": "POST", "path": "/api/admin/users", "success": 201, "response": "user"
     }
   },
   "error_statuses": [
@@ -127,6 +139,7 @@
     404,
     409,
     413,
+    500,
     503,
     504
   ]
