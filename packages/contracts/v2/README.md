@@ -77,7 +77,8 @@ the current lease token when transitioning jobs. A retryable parsing failure
 returns to QUEUED with a delay while attempts remain. Status is independent of
 document version status. Use sanitized reason codes internally.
 
-Only the exclusive writer may publish or reconcile an index. Before publishing,
+Only the exclusive writer may publish or reconcile an index. The E3 session
+advisory lock and local index-root lock fence a durable writer. Before publishing,
 confirm ownership and the lease while holding writer ownership. Publish the
 manifest before recording INDEXED. On restart, inspect expired in-flight jobs
 under that same ownership and reconcile against the verified manifest's UUID

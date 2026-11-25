@@ -43,30 +43,31 @@ def load_pdf_jobs(path: Path, pdf_root: Path) -> list[Source]:
     sources = []
     for number, row in enumerate(rows, 1):
         try:
-            if row["source_type"] != "PDF":
-                raise ValueError("Expected an E3 PDF job")
-            relative = row["file_path"]
-            if not isinstance(relative, str) or not relative:
-                raise ValueError("Expected a relative PDF path")
-            windows_path = PureWindowsPath(relative)
-            if windows_path.drive or windows_path.root or any(
-                part == ".." or ":" in part for part in windows_path.parts
-            ):
-                raise ValueError("PDF path must be relative to PDF_ROOT")
-            pdf_path = root.joinpath(*windows_path.parts).resolve()
-            if pdf_path == root or not pdf_path.is_relative_to(root):
-                raise ValueError("PDF path escapes PDF_ROOT")
-            scheme_id = row.get("scheme_id")
-            sources.append(Source(
-                doc_id=_uuid(row["doc_id"]),
-                source_type="PDF",
-                job_id=_uuid(row["job_id"]),
-                pdf_path=pdf_path,
-                scheme_id=_uuid(scheme_id) if scheme_id is not None else None,
-            ))
+            sources.append(pdf_source(row, root))
         except (KeyError, AttributeError, TypeError, ValueError, OSError, RuntimeError) as error:
             raise InputError(f"Invalid PDF job row {number}: {error}") from error
     return sources
+
+
+def pdf_source(row: dict, root: Path) -> Source:
+    if row["source_type"] != "PDF":
+        raise ValueError("Expected an E3 PDF job")
+    relative = row["file_path"]
+    if not isinstance(relative, str) or not relative:
+        raise ValueError("Expected a relative PDF path")
+    windows_path = PureWindowsPath(relative)
+    if windows_path.drive or windows_path.root or any(
+        part == ".." or ":" in part for part in windows_path.parts
+    ):
+        raise ValueError("PDF path must be relative to PDF_ROOT")
+    pdf_path = root.joinpath(*windows_path.parts).resolve()
+    if pdf_path == root or not pdf_path.is_relative_to(root):
+        raise ValueError("PDF path escapes PDF_ROOT")
+    scheme_id = row.get("scheme_id")
+    return Source(
+        doc_id=_uuid(row["doc_id"]), source_type="PDF", job_id=_uuid(row["job_id"]),
+        pdf_path=pdf_path, scheme_id=_uuid(scheme_id) if scheme_id is not None else None,
+    )
 
 
 def load_scheme_records(path: Path) -> list[Source]:
@@ -120,61 +121,63 @@ def split_passages(text: str, max_tokens: int):
         first, start = last, end
 
 
-def build_segment(sources: list[Source], committed: set[str], next_id: int, max_tokens: int):
-    """Build one segment and one per-source report, without performing index I/O."""
+def source_report(source: Source) -> dict:
+    report = {"doc_id": source.doc_id, "source_type": source.source_type}
+    if source.job_id is not None:
+        report["job_id"] = source.job_id
+    if source.scheme_id is not None:
+        report["scheme_id"] = source.scheme_id
+    return report
+
+
+def parse_source(source: Source, max_tokens: int, emit, *, max_text_bytes: int | None = None) -> dict:
+    report = source_report(source)
+    omitted = []
+    if source.source_type == "PDF":
+        try:
+            extracted = extract_pdf(source.pdf_path, max_text_bytes=max_text_bytes)
+        except PdfExtractionError as error:
+            return {**report, "status": "FAILED", "reason": error.code, "omitted_pages": list(error.omitted_pages)}
+        pages = extracted.pages
+        omitted.extend(extracted.omitted_pages)
+    else:
+        pages = ((None, source.text),)
+
+    count = 0
+    for page, text in pages:
+        before = count
+        for passage_text, tokens in split_passages(text, max_tokens):
+            emit((page, passage_text, tokens))
+            count += 1
+        if page is not None and count == before:
+            omitted.append(page)
+    report["omitted_pages"] = sorted(omitted)
+    if count:
+        report.update(status="INDEXED", passages=count)
+    else:
+        report.update(status="FAILED", reason="NO_SEARCHABLE_TOKENS")
+    return report
+
+
+def compile_segment(documents, next_id: int):
+    """Assign persistent IDs and compile complete parsed documents."""
     passages = []
     postings = defaultdict(list)
-    indexed = set()
-    reports = []
-    for source in sorted(sources, key=lambda item: item.doc_id):
-        report = {"doc_id": source.doc_id, "source_type": source.source_type}
-        if source.job_id is not None:
-            report["job_id"] = source.job_id
-        if source.scheme_id is not None:
-            report["scheme_id"] = source.scheme_id
-        reports.append(report)
-        if source.doc_id in committed or source.doc_id in indexed:
-            report["status"] = "SKIPPED_DUPLICATE"
-            continue
-
-        omitted = []
-        if source.source_type == "PDF":
-            try:
-                extracted = extract_pdf(source.pdf_path)
-            except PdfExtractionError as error:
-                report.update(status="FAILED", reason=error.code, omitted_pages=list(error.omitted_pages))
-                continue
-            pages = extracted.pages
-            omitted.extend(extracted.omitted_pages)
-        else:
-            pages = ((None, source.text),)
-
-        before = len(passages)
-        for page, text in pages:
-            page_before = len(passages)
-            for passage_text, tokens in split_passages(text, max_tokens):
-                passage_id = encode_passage_id(next_id)
-                next_id += 1
-                positions = defaultdict(list)
-                spans = []
-                for position, (term, span) in enumerate(tokens):
-                    positions[term].append(position)
-                    spans.append(span)
-                for term, offsets in positions.items():
-                    postings[term].append({"passage_id": passage_id, "positions": offsets})
-                passages.append({
-                    "passage_id": passage_id, "doc_id": source.doc_id, "page_no": page,
-                    "text": passage_text, "length": len(tokens), "token_spans": spans,
-                })
-            if page is not None and len(passages) == page_before:
-                omitted.append(page)
-
-        report["omitted_pages"] = sorted(omitted)
-        if len(passages) == before:
-            report.update(status="FAILED", reason="NO_SEARCHABLE_TOKENS")
-        else:
-            indexed.add(source.doc_id)
-            report.update(status="INDEXED", passages=len(passages) - before)
+    for doc_id, records in documents:
+        for page, text, tokens in records:
+            passage_id = encode_passage_id(next_id)
+            next_id += 1
+            positions = defaultdict(list)
+            spans = []
+            for position, (term, span) in enumerate(tokens):
+                positions[term].append(position)
+                spans.append(span)
+            for term, offsets in positions.items():
+                postings[term].append({"passage_id": passage_id, "positions": offsets})
+            passages.append({
+                "passage_id": passage_id, "doc_id": doc_id, "page_no": page,
+                "text": text, "length": len(tokens), "token_spans": spans,
+            })
 
     dictionary = sorted(postings)
     return {
@@ -184,4 +187,22 @@ def build_segment(sources: list[Source], committed: set[str], next_id: int, max_
         "postings": {term: postings[term] for term in dictionary},
         "passages": passages,
         "df": {term: len(postings[term]) for term in dictionary},
-    }, indexed, next_id, reports
+    }, next_id
+
+
+def build_segment(sources: list[Source], committed: set[str], next_id: int, max_tokens: int):
+    documents = []
+    indexed = set()
+    reports = []
+    for source in sorted(sources, key=lambda item: item.doc_id):
+        if source.doc_id in committed or source.doc_id in indexed:
+            reports.append({**source_report(source), "status": "SKIPPED_DUPLICATE"})
+            continue
+        records = []
+        report = parse_source(source, max_tokens, records.append)
+        reports.append(report)
+        if report["status"] == "INDEXED":
+            documents.append((source.doc_id, records))
+            indexed.add(source.doc_id)
+    segment, next_id = compile_segment(documents, next_id)
+    return segment, indexed, next_id, reports

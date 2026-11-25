@@ -1,4 +1,8 @@
 -- E3-owned prepared statements. Execute this file once per database session.
+-- The writer holds this session lock in addition to its local filesystem lock.
+PREPARE acquire_index_writer AS
+SELECT pg_try_advisory_lock(hashtextextended('team06/index-writer/' || current_schema(), 0));
+
 PREPARE claim_index_job(interval) AS
 WITH candidate AS (
     SELECT job_id FROM index_job
@@ -44,6 +48,11 @@ PREPARE list_expired_index_jobs AS
 SELECT job_id, doc_id FROM index_job
 WHERE status IN ('PARSING', 'COMMITTING') AND lease_until <= now()
 ORDER BY lease_until, job_id;
+
+-- Read-only delay before the next eligible recovery while the writer owns the index.
+PREPARE next_index_recovery AS
+SELECT EXTRACT(EPOCH FROM min(lease_until) - now()) FROM index_job
+WHERE status IN ('PARSING', 'COMMITTING');
 
 -- $2 says whether the validated manifest already contains this document UUID.
 PREPARE reconcile_index_job(uuid, boolean, interval) AS

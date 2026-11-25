@@ -30,23 +30,34 @@ class NoTextPdfError(PdfExtractionError):
     code = "PDF_NO_TEXT"
 
 
+class PdfLimitError(PdfExtractionError):
+    code = "PDF_LIMIT"
+
+
 @dataclass(frozen=True)
 class ExtractedPdf:
     pages: tuple[tuple[int, str], ...]
     omitted_pages: tuple[int, ...]
 
 
-def extract_pdf(path: str | Path) -> ExtractedPdf:
+def extract_pdf(path: str | Path, *, max_text_bytes: int | None = None) -> ExtractedPdf:
     """Fully read a digital PDF and retain its exact extracted text and page numbers."""
     pages = []
     omitted = []
+    total_bytes = 0
     try:
         with Path(path).open("rb") as source:
             reader = PdfReader(source, strict=True)
             if reader.is_encrypted:
                 raise EncryptedPdfError("Encrypted PDFs are not supported")
             for page_no, page in enumerate(reader.pages, start=1):
+                if max_text_bytes is not None and page_no > 10_000:
+                    raise PdfLimitError("PDF page limit exceeded")
                 text = page.extract_text()
+                if max_text_bytes is not None:
+                    total_bytes += len(text.encode("utf-8"))
+                    if total_bytes > max_text_bytes:
+                        raise PdfLimitError("Extracted text limit exceeded")
                 if text.strip():
                     pages.append((page_no, text))
                 else:
