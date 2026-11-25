@@ -1,51 +1,7 @@
-import { randomUUID } from 'node:crypto';
-import { errorResponse } from '../../../packages/contracts/v2/http.js';
+import { errorResponse } from '../../../../packages/contracts/v2/http.js';
+import { ApiError, absent } from '../exceptions/api-error.js';
 
-export const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-
-export class ApiError extends Error {
-  constructor(status, code, message) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-export const invalid = (message) => new ApiError(400, 'INVALID_REQUEST', message);
-export const absent = () => new ApiError(404, 'NOT_FOUND', 'Resource not found');
-export const forbidden = () => new ApiError(403, 'FORBIDDEN', 'This action is outside your access scope');
-export const unavailable = (message) => new ApiError(503, 'SERVICE_UNAVAILABLE', message);
-
-export function id(value) {
-  if (typeof value !== 'string' || !UUID.test(value)) throw invalid('Use a valid UUID');
-  return value;
-}
-
-export function object(value, allowed) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)
-      || Object.keys(value).some((key) => !allowed.includes(key))) {
-    throw invalid('Request contains unsupported fields');
-  }
-  return value;
-}
-
-export function string(value, field, max) {
-  if (typeof value !== 'string' || !value.trim() || [...value].length > max || value.includes('\0')) {
-    throw invalid(`${field} is required and must be at most ${max} characters`);
-  }
-  return value.trim();
-}
-
-export function integer(value, max) {
-  if (typeof value === 'string' && /^[1-9][0-9]*$/.test(value)) value = Number(value);
-  if (!Number.isInteger(value) || value < 1 || value > max) throw invalid('Invalid number');
-  return value;
-}
-
-export function requestId(_request, response, next) {
-  response.locals.requestId = randomUUID();
-  response.set({ 'X-Request-ID': response.locals.requestId, 'X-Content-Type-Options': 'nosniff' });
-  next();
-}
+export function notFound() { throw absent(); }
 
 const known = {
   DUPLICATE: [409, 'This resource already exists'],

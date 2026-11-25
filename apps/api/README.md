@@ -7,14 +7,41 @@ separate process with E1 credentials.
 
 ## Modules
 
-| File | Responsibility |
+| Layer | Responsibility |
 | --- | --- |
-| `server.js`, `src/config.js`, `src/app.js` | Configuration, Express routes, middleware and shutdown |
-| `src/auth.js`, `src/http.js` | bcrypt, JWT verification, RBAC, request IDs, validation and JSON errors |
-| `src/controllers.js`, `src/engines.js` | HTTP projections, E2 calls and PDF validator process adapter |
-| `src/documents.js`, `pdf_check.py` | Multer staging, authorization, metadata validation and E1 PDF checks |
-| `src/persistence/`, `indexer.py` | E3 repository integration and polling of E1's durable queue |
-| `apps/web/src/` | Search, authentication, bookmarks, dashboards and a same-origin API client |
+| `apps/web/src/` | React search, account pages and a same-origin API client |
+| `src/routes/` | Shared endpoint registration and middleware order |
+| `src/controllers/` | Extract HTTP inputs and write status, JSON, cookies or PDFs |
+| `src/services/` | Credential verification, sessions, search enrichment and existing upload workflow |
+| `src/adapters/`, `src/persistence/` | E2 HTTP, E1 PDF validator process and E3 repository |
+| PostgreSQL, E1 index and PDF storage | Engine-owned persistent data |
+
+`src/config/` validates environment settings. `src/validators/` parses
+request data, `src/utils/` formats public PDF links, and `src/exceptions/`
+defines typed application errors.
+
+Request context and logging run first, followed by the CORS allowlist and
+JSON parser. Routes attach validation, authentication, RBAC and throttling
+where required. Unknown API routes and the centralized JSON error handler
+run after the routes. Logs record a request ID, method, status and duration.
+Authentication failures also use the E3 operational event interface.
+
+`credentials` accepts only username and password for public registration.
+`createAuth.register` hashes the password and delegates citizen creation
+to E3. `createAuth.session` validates JWT expiration and checks the active
+E3 session. `authenticationMiddleware.roles` checks the persisted account
+role and `createAuth.logout` revokes the session. The browser uses the
+HTTP-only same-site cookie and retrieves the account via `/api/auth/me`.
+
+`searchParameters` bounds query length and pagination. `createSearchService`
+delegates ranking and autocomplete to E2 and gets filter options and
+result metadata from E3.
+
+`CORS_ORIGINS` is a comma-separated allowlist of exact browser origins.
+The auth limiter shares 20 attempts per 60 seconds across login and
+registration per Express client IP by default. It resets on restart and
+treats clients behind the same local proxy as one IP. Configure
+`AUTH_RATE_MAX` and `AUTH_RATE_WINDOW_MS` for local runs.
 
 ## Local setup
 
@@ -28,7 +55,7 @@ Copy-Item .env.example .env
 ```
 
 Create a virtual environment first with `python -m venv .venv` if needed.
-Apply migrations 001–005 in order and then provision runtime role grants.
+Apply migrations 001–006 in order and then provision runtime role grants.
 For a fresh local schema, set the owner connection as an environment
 variable and run:
 
@@ -142,7 +169,7 @@ test, set `E3_TEST_DATABASE_URL` to a disposable administrator database and
 `E4_TEST_PYTHON` to the project Python executable. It creates an isolated
 schema and starts real E1 and E2 subprocesses.
 
-With the disposable PostgreSQL cluster available, the E4 verification
+In the Sprint 2 baseline, with the disposable PostgreSQL cluster available, E4 verification
 passed 47 Python tests, eight Node tests, and the Vite build. The browser
 workflow also passed in headless Edge with the real services. It covered
 staff upload, indexing status, citizen registration, autocomplete, filtered
@@ -150,7 +177,16 @@ highlighted results, a page-specific PDF link, and bookmark persistence.
 The browser check uses optional `E4_TEST_BROWSER` and
 `E4_TEST_BROWSER_MODULE` paths for an installed Chromium browser and a local
 Playwright Core module. Run the Vite build before enabling that check.
+Use `node --test --test-concurrency=1 tests/*.test.js` on development
+machines where the browser and PostgreSQL compete with parallel tests.
+
+To demonstrate Phase 1, register a citizen, verify the profile, and visit
+`#admin` to see the access-denied page. Return to search, enter a prefix,
+select a suggested term and apply a filter. Sign out, then use a seeded
+staff account to verify its role-specific home page.
 
 FR-11, FR-12 and FR-13 are implemented for the Sprint 2 workflow. Gate 1
 load/relevance acceptance, production security deployment, supersession
 and transactional audit remain separate work.
+
+For local TXT and PDF corpus ingestion, see the [Phase 2 runbook](../../docs/phase-2-mixed-corpus.md).

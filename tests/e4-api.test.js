@@ -60,6 +60,8 @@ async function verifyBrowser(base, scheme, password) {
     await page.getByLabel('Username').fill('test-dept');
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Department home' }).waitFor();
+    await page.getByRole('link', { name: 'Open document dashboard' }).click();
     await page.getByRole('heading', { name: 'Department dashboard' }).waitFor();
     await page.getByLabel('Scheme', { exact: true }).selectOption(scheme);
     await page.getByLabel('Document title').fill('Synthetic browser upload');
@@ -75,7 +77,10 @@ async function verifyBrowser(base, scheme, password) {
     await page.getByLabel('Username').fill('browser-citizen');
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Create account' }).click();
-    await page.getByRole('link', { name: 'Bookmarks' }).waitFor();
+    await page.getByRole('heading', { name: 'Your profile' }).waitFor();
+    await page.goto(base + '#admin');
+    await page.getByRole('heading', { name: 'Access denied' }).waitFor();
+    await page.getByRole('link', { name: 'Return to search' }).click();
     await page.getByLabel('Search query').fill('guid');
     await page.getByRole('button', { name: 'guidelines', exact: true }).click();
     await page.getByLabel('State', { exact: true }).selectOption('Karnataka');
@@ -105,7 +110,7 @@ test('public API timeout mapping and safe React highlights', async (t) => {
   const slow = createServer((_req, _res) => {});
   const base = await listen(slow);
   t.after(() => { slow.closeAllConnections(); slow.close(); });
-  const { queryService } = await import('../apps/api/src/engines.js');
+  const { queryService } = await import('../apps/api/src/adapters/engines.js');
   await assert.rejects(queryService({ e2: base, engineTimeout: 20 }).search({ query: 'grant' }), { status: 504 });
   const { Highlighted } = await import('../apps/web/src/highlight.js');
   const { createElement } = require('react');
@@ -117,7 +122,26 @@ test('public API timeout mapping and safe React highlights', async (t) => {
   assert.doesNotMatch(markup, /<script>/);
 });
 
-test('real PostgreSQL, E1 worker, E2 HTTP and E4 public workflows', { skip: !database, timeout: 75000 }, async (t) => {
+test('authentication throttle returns a typed error and retry interval', async (t) => {
+  const express = require('express');
+  const { authRateLimit, requestContext } = await import('../apps/api/src/middleware/request.js');
+  const { handleError } = await import('../apps/api/src/middleware/errors.js');
+  const app = express();
+  app.post('/api/auth/login', requestContext, authRateLimit({ authRateMax: 1 }),
+    (_request, response) => response.sendStatus(204));
+  app.use(handleError);
+  const server = createServer(app);
+  const base = await listen(server);
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const attempt = () => fetch(base + '/api/auth/login', { method: 'POST' });
+  assert.equal((await attempt()).status, 204);
+  const limited = await attempt();
+  assert.equal(limited.status, 429);
+  assert.ok(Number(limited.headers.get('retry-after')) > 0);
+  assert.equal((await limited.json()).error.code, 'RATE_LIMITED');
+});
+
+test('real PostgreSQL, E1 worker, E2 HTTP and E4 public workflows', { skip: !database, timeout: process.env.E4_TEST_BROWSER_MODULE ? 150000 : 75000 }, async (t) => {
   const schema = 'e4_test_' + randomUUID().replaceAll('-', '');
   const root = await fs.mkdtemp(join(tmpdir(), 'team06-e4-'));
   const admin = new Pool({ connectionString: database, options: '-c search_path=' + schema });
@@ -165,7 +189,7 @@ test('real PostgreSQL, E1 worker, E2 HTTP and E4 public workflows', { skip: !dat
   const portProbe = createServer();
   const e2Url = await listen(portProbe);
   await new Promise((done) => portProbe.close(done));
-  const { loadConfig } = await import('../apps/api/src/config.js');
+  const { loadConfig } = await import('../apps/api/src/config/index.js');
   const { createApp } = await import('../apps/api/src/app.js');
   const config = loadConfig({
     E4_DATABASE_URL: roleUrl('e4'), JWT_SECRET: randomBytes(32).toString('hex'),
@@ -186,16 +210,15 @@ test('real PostgreSQL, E1 worker, E2 HTTP and E4 public workflows', { skip: !dat
   e2 = service(['-m', 'uvicorn', 'engines.e2.main:app', '--host', '127.0.0.1',
     '--port', new URL(e2Url).port, '--no-access-log'], { E2_DATABASE_URL: roleUrl('e2'), INDEX_ROOT: config.indexRoot });
   async function openApi() {
-    const { app, repo } = await createApp(config);
+    const express = require('express');
+    const web = express();
+    listener = createServer(web);
+    const origin = await listen(listener);
+    const { app, repo } = await createApp({ ...config, corsOrigins: [...config.corsOrigins, origin] });
     repository = repo;
-    if (process.env.E4_TEST_BROWSER_MODULE) {
-      const express = require('express');
-      const web = express();
-      web.use(app);
-      web.use(express.static(resolve(__dirname, '../apps/web/dist')));
-      listener = createServer(web);
-    } else listener = createServer(app);
-    return listen(listener);
+    web.use(app);
+    if (process.env.E4_TEST_BROWSER_MODULE) web.use(express.static(resolve(__dirname, '../apps/web/dist')));
+    return origin;
   }
   let base = await openApi();
   await until(async () => (await fetch(base + '/api/health')).ok);
@@ -216,6 +239,15 @@ test('real PostgreSQL, E1 worker, E2 HTTP and E4 public workflows', { skip: !dat
       ...(response.headers.get('content-type')?.includes('json') ? { data: await response.json() } : {}),
     };
   }
+  const preflight = await fetch(base + '/api/auth/login', {
+    method: 'OPTIONS', headers: { Origin: base, 'Access-Control-Request-Method': 'POST' },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get('access-control-allow-origin'), base);
+  const deniedOrigin = await fetch(base + '/api/search?q=housing', { headers: { Origin: 'https://other.example' } });
+  assert.equal(deniedOrigin.status, 403);
+  assert.equal((await call('/unknown')).status, 404);
+  assert.equal((await call('/auth/me')).status, 401);
   const login = (username, password = testPassword) => call('/auth/login', 'POST', { username, password });
   const adminLogin = await login('test-admin');
   assert.equal(adminLogin.status, 200);

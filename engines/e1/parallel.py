@@ -13,7 +13,7 @@ from queue import Empty, Full, Queue
 
 from .jobs import open_jobs
 from .processes import Frame, Limits, POLL_SECONDS, RETRYABLE, Task, worker_main, writer_main
-from .reference import Source, parse_source, pdf_source, source_report
+from .reference import FILE_TYPES, Source, parse_source, file_source, source_report
 
 LOGGER = logging.getLogger(__name__)
 
@@ -138,13 +138,13 @@ class Supervisor:
         while (row := self.jobs.claim()) is not None:
             job_id, doc_id, attempt, lease_token, _, relative, source_type = row
             try:
-                if source_type == "PDF":
-                    source = pdf_source({"source_type": source_type, "doc_id": str(doc_id),
+                if source_type in FILE_TYPES:
+                    source = file_source({"source_type": source_type, "doc_id": str(doc_id),
                                          "job_id": str(job_id), "file_path": relative}, self.pdf_root)
                 else:
                     source = replace(self.scheme_records[str(doc_id)], job_id=str(job_id))
             except (ValueError, OSError, RuntimeError, KeyError):
-                reason = "INVALID_JOB_SOURCE" if source_type == "PDF" else "MISSING_SCHEME_RECORD"
+                reason = "INVALID_JOB_SOURCE" if source_type in FILE_TYPES else "MISSING_SCHEME_RECORD"
                 outcome = self.jobs.fail(job_id, lease_token, False, reason)
                 self._record({"doc_id": str(doc_id), "job_id": str(job_id), "status": outcome[1] if outcome else "LEASE_LOST",
                               "reason": reason})

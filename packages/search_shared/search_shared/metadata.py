@@ -27,7 +27,8 @@ class MetadataRepository:
         with self.connection.cursor() as cursor:
             if active:
                 cursor.execute(
-                    """SELECT DISTINCT state, department, category FROM e3_indexed_document
+                    """SELECT DISTINCT region, department, category FROM e3_indexed_document
+                       LEFT JOIN LATERAL unnest(regions) AS region ON true
                        WHERE doc_id = ANY(%s::uuid[])""", (committed,),
                 )
                 acceptable = {field: set() for field in active}
@@ -42,7 +43,7 @@ class MetadataRepository:
                 """
                 SELECT doc_id FROM e3_indexed_document
                 WHERE doc_id = ANY(%(committed)s::uuid[])
-                  AND (%(state)s::text[] IS NULL OR state = ANY(%(state)s::text[]))
+                  AND (%(state)s::text[] IS NULL OR regions && %(state)s::text[])
                   AND (%(department)s::text[] IS NULL OR department = ANY(%(department)s::text[]))
                   AND (%(category)s::text[] IS NULL OR category = ANY(%(category)s::text[]))
                 """,
@@ -64,7 +65,7 @@ class MetadataRepository:
             )
             return {
                 str(doc_id): {
-                    "scheme_id": str(scheme_id),
+                    "scheme_id": str(scheme_id) if scheme_id else None,
                     "title": title,
                     "department": department,
                     "issue_date": issue_date.isoformat() if issue_date else None,

@@ -72,7 +72,10 @@
     "sourceType": {
       "enum": [
         "PDF",
-        "CSV"
+        "CSV",
+        "SCHEME_ARTICLE",
+        "SCHEME_PDF",
+        "OFFICIAL_PDF"
       ]
     },
     "versionState": {
@@ -430,6 +433,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "regions": {"type": "array", "items": {"type": "string"}},
+        "source_references": {"type": "array", "items": {"type": "string"}},
         "scheme_name": {"type": ["string", "null"]},
         "state": {"type": ["string", "null"]},
         "category": {"type": ["string", "null"]},
@@ -816,6 +821,7 @@
         "issue_date": {
           "$ref": "#/$defs/date"
         },
+        "article_text": {"type": ["string", "null"]},
         "source_type": {
           "$ref": "#/$defs/sourceType"
         },

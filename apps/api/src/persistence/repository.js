@@ -71,6 +71,10 @@ export class E3Repository {
     this.indexRoot = indexRoot;
   }
 
+  async health() {
+    await this.pool.query('SELECT 1');
+  }
+
   async createUser({ username, passwordHash }) {
     if ([username, passwordHash].some((value) => typeof value !== 'string' || !value.trim() || value.includes('\0'))) {
       throw new PersistenceError('INVALID_USER', 'Invalid account data');
@@ -169,7 +173,7 @@ export class E3Repository {
 
   async searchMetadata(docIds) {
     const { rows } = await this.pool.query(`
-      SELECT doc_id,scheme_name,state,category FROM e3_indexed_document WHERE doc_id=ANY($1::uuid[])
+      SELECT doc_id,scheme_name,state,category,regions,source_references FROM e3_indexed_document WHERE doc_id=ANY($1::uuid[])
     `, [docIds]);
     return new Map(rows.map((row) => [row.doc_id, row]));
   }
@@ -203,27 +207,33 @@ export class E3Repository {
   async listFilters() {
     const ids = await committedDocumentIds(this.indexRoot);
     return one(this.pool, `
-      SELECT coalesce(array_agg(DISTINCT state ORDER BY state) FILTER (WHERE state IS NOT NULL), '{}') AS state,
+      SELECT coalesce(array_agg(DISTINCT region ORDER BY region) FILTER (WHERE region IS NOT NULL), '{}') AS state,
              coalesce(array_agg(DISTINCT department ORDER BY department) FILTER (WHERE department IS NOT NULL), '{}') AS department,
              coalesce(array_agg(DISTINCT category ORDER BY category) FILTER (WHERE category IS NOT NULL), '{}') AS category
-      FROM e3_indexed_document WHERE doc_id=ANY($1::uuid[])
+      FROM e3_indexed_document LEFT JOIN LATERAL unnest(regions) AS region ON true
+      WHERE doc_id=ANY($1::uuid[])
     `, [ids]);
   }
 
   async getDocument(docId) {
     const ids = await committedDocumentIds(this.indexRoot);
-    return one(this.pool, `
+    const row = await one(this.pool, `
       SELECT doc_id,scheme_id,title,circular_no,issue_date::text,source_type,version_status,
              CASE WHEN version_status='SUPERSEDED' THEN superseded_by END AS current_doc_id
       FROM e3_indexed_document WHERE doc_id=$1 AND doc_id=ANY($2::uuid[])
     `, [docId, ids]);
+    if (row?.source_type !== 'SCHEME_ARTICLE') return row;
+    const source = await one(this.pool, 'SELECT file_path FROM document WHERE doc_id=$1', [docId]);
+    const file = /^articles\/[0-9a-f]{64}\.txt$/.test(source?.file_path)
+      && await storedFile(this.pdfRoot, source.file_path);
+    return { ...row, article_text: file ? await readFile(file, 'utf8') : null };
   }
 
   async getDocumentPdf(docId) {
     const ids = await committedDocumentIds(this.indexRoot);
     const row = await one(this.pool, `
       SELECT d.file_path FROM document d JOIN e3_indexed_document e USING (doc_id)
-      WHERE d.doc_id=$1 AND d.doc_id=ANY($2::uuid[]) AND d.source_type='PDF'
+      WHERE d.doc_id=$1 AND d.doc_id=ANY($2::uuid[]) AND d.source_type IN ('PDF','SCHEME_PDF','OFFICIAL_PDF')
     `, [docId, ids]);
     return row?.file_path ? storedFile(this.pdfRoot, row.file_path) : null;
   }
@@ -235,7 +245,7 @@ export class E3Repository {
         CASE WHEN u.role='admin' OR (u.role='department' AND u.dept_id=s.dept_id AND d.uploaded_by=u.user_id)
              THEN j.error END AS failure_reason
       FROM document d LEFT JOIN ingestion_job j USING (doc_id)
-      JOIN scheme s ON s.scheme_id=d.scheme_id
+      LEFT JOIN scheme s ON s.scheme_id=d.scheme_id
       LEFT JOIN app_user u ON u.user_id=$3
       WHERE d.doc_id=$1 AND (
         (j.status='INDEXED' AND d.doc_id=ANY($2::uuid[]))

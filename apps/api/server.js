@@ -1,5 +1,5 @@
 import { createApp } from './src/app.js';
-import { loadConfig } from './src/config.js';
+import { loadConfig } from './src/config/index.js';
 
 const config = loadConfig();
 const { app, repo } = await createApp(config);

@@ -53,7 +53,7 @@ class SearchHit(ContractModel):
     score: float = Field(allow_inf_nan=False)
     matched_terms: list[str]
     match_spans: list[MatchSpan]
-    source_type: Literal["PDF", "CSV"] | None
+    source_type: Literal["PDF", "CSV", "SCHEME_ARTICLE", "SCHEME_PDF", "OFFICIAL_PDF"] | None
     superseded: bool | None
     current_doc_id: DocumentId | None
 

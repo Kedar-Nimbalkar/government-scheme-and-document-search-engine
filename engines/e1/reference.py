@@ -12,6 +12,10 @@ from search_shared.index_reader import encode_passage_id
 from search_shared.tokenizer import TOKENIZER_VERSION, tokenize_with_spans
 
 from .pdf import PdfExtractionError, extract_pdf
+from .source_cleaning import clean_snapshot_page
+
+PDF_TYPES = {"PDF", "SCHEME_PDF", "OFFICIAL_PDF"}
+FILE_TYPES = PDF_TYPES | {"SCHEME_ARTICLE"}
 
 
 class InputError(ValueError):
@@ -26,6 +30,7 @@ class Source:
     pdf_path: Path | None = None
     scheme_id: str | None = None
     text: str | None = None
+    article_path: Path | None = None
 
 
 def _uuid(value: str) -> str:
@@ -50,8 +55,13 @@ def load_pdf_jobs(path: Path, pdf_root: Path) -> list[Source]:
 
 
 def pdf_source(row: dict, root: Path) -> Source:
-    if row["source_type"] != "PDF":
-        raise ValueError("Expected an E3 PDF job")
+    return file_source(row, root)
+
+
+def file_source(row: dict, root: Path) -> Source:
+    kind = row["source_type"]
+    if kind not in FILE_TYPES:
+        raise ValueError("Expected a file-backed E3 job")
     relative = row["file_path"]
     if not isinstance(relative, str) or not relative:
         raise ValueError("Expected a relative PDF path")
@@ -65,8 +75,10 @@ def pdf_source(row: dict, root: Path) -> Source:
         raise ValueError("PDF path escapes PDF_ROOT")
     scheme_id = row.get("scheme_id")
     return Source(
-        doc_id=_uuid(row["doc_id"]), source_type="PDF", job_id=_uuid(row["job_id"]),
-        pdf_path=pdf_path, scheme_id=_uuid(scheme_id) if scheme_id is not None else None,
+        doc_id=_uuid(row["doc_id"]), source_type=kind, job_id=_uuid(row["job_id"]),
+        pdf_path=pdf_path if kind in PDF_TYPES else None,
+        article_path=pdf_path if kind == "SCHEME_ARTICLE" else None,
+        scheme_id=_uuid(scheme_id) if scheme_id is not None else None,
     )
 
 
@@ -133,22 +145,32 @@ def source_report(source: Source) -> dict:
 def parse_source(source: Source, max_tokens: int, emit, *, max_text_bytes: int | None = None) -> dict:
     report = source_report(source)
     omitted = []
-    if source.source_type == "PDF":
+    if source.source_type in PDF_TYPES:
         try:
             extracted = extract_pdf(source.pdf_path, max_text_bytes=max_text_bytes)
         except PdfExtractionError as error:
             return {**report, "status": "FAILED", "reason": error.code, "omitted_pages": list(error.omitted_pages)}
         pages = extracted.pages
         omitted.extend(extracted.omitted_pages)
+    elif source.source_type == "SCHEME_ARTICLE":
+        try:
+            text = source.article_path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError):
+            return {**report, "status": "FAILED", "reason": "ARTICLE_UNREADABLE"}
+        pages = ((None, text),)
     else:
         pages = ((None, source.text),)
 
     count = 0
     for page, text in pages:
         before = count
-        for passage_text, tokens in split_passages(text, max_tokens):
-            emit((page, passage_text, tokens))
-            count += 1
+        if source.source_type == "SCHEME_PDF":
+            text = clean_snapshot_page(text)
+        blocks = text.split("\n\n") if source.source_type in {"SCHEME_ARTICLE", "SCHEME_PDF"} else (text,)
+        for block in blocks:
+            for passage_text, tokens in split_passages(block, max_tokens):
+                emit((page, passage_text, tokens))
+                count += 1
         if page is not None and count == before:
             omitted.append(page)
     report["omitted_pages"] = sorted(omitted)

@@ -106,7 +106,8 @@ def worker_main(tasks, results, limits: Limits, max_tokens: int, parser=parse_so
                     buffer.clear()
 
         try:
-            if source.source_type == "PDF" and source.pdf_path.stat().st_size > limits.input_bytes:
+            path = source.pdf_path or source.article_path
+            if path is not None and path.stat().st_size > limits.input_bytes:
                 raise StageLimit
             report = parser(source, max_tokens, emit, max_text_bytes=limits.staged_bytes)
             emit(report)

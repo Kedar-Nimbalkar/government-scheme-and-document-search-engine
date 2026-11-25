@@ -54,3 +54,7 @@ th, td { padding: .53rem; border-bottom: 1px solid var(--border); }
 th { background: #edf3fa; }
 .status { font-family: ui-monospace, monospace; font-size: .88rem; white-space: nowrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+.source-label { color: #17365d; border-bottom: 1px solid #aab8cd; }
+.article-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-block: 1rem; }
+.result details { overflow-wrap: anywhere; margin-block: .75rem; }

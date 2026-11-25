@@ -6,6 +6,14 @@ import { Search } from './Search.jsx';
 import { api } from './api.js';
 import './style.css';
 
+function AccessDenied() {
+  return <section className="panel">
+    <h1>Access denied</h1>
+    <p role="alert">Your account does not have access to this page.</p>
+    <a href="#search">Return to search</a>
+  </section>;
+}
+
 function App() {
   const [location, setLocation] = useState(window.location.hash.slice(1));
   const [user, setUser] = useState(null);
@@ -32,7 +40,7 @@ function App() {
 
   function signedIn(profile) {
     setUser(profile); setError('');
-    window.location.hash = profile.role === 'citizen' ? 'search' : 'dashboard';
+    window.location.hash = profile.role === 'citizen' ? 'profile' : profile.role;
   }
   async function signOut() {
     setError('');
@@ -47,12 +55,25 @@ function App() {
   let page;
   if (route === 'login' || route === 'register') {
     page = <Account key={route} registration={route === 'register'} onSignedIn={signedIn} />;
-  } else if (route === 'bookmarks' || route === 'dashboard') {
+  } else if (['bookmarks', 'profile', 'dashboard', 'department', 'admin'].includes(route)) {
     if (loading) page = <p role="status">Checking your account…</p>;
     else if (!user) page = <p className="panel"><a href="#login">Sign in</a> to continue.</p>;
     else if (route === 'bookmarks') page = <Bookmarks />;
-    else if (staff) page = <Dashboard user={user} />;
-    else page = <p role="alert">A department or administrator account is required.</p>;
+    else if (route === 'profile') page = <section className="panel">
+      <h1>Your profile</h1>
+      <p>Username <strong>{user.username}</strong></p>
+      <p>Role <strong>{user.role}</strong></p>
+    </section>;
+    else if ((route === 'department' && user.role === 'department')
+      || (route === 'admin' && user.role === 'admin') || (route === 'dashboard' && staff)) {
+      page = route === 'dashboard' ? <Dashboard user={user} /> : <section className="panel">
+        <h1>{route === 'admin' ? 'Administrator' : 'Department'} home</h1>
+        <p>Signed in as <strong>{user.username}</strong>.</p>
+        <a href="#dashboard">Open document dashboard</a>
+      </section>;
+    } else page = <AccessDenied />;
+  } else if (route === 'unauthorized') {
+    page = <AccessDenied />;
   } else {
     page = <Search key={location} user={user} initialQuery={new URLSearchParams(params).get('q') || ''} />;
   }
@@ -64,7 +85,8 @@ function App() {
           <a href="#search">Search</a>
           {user ? <>
             <a href="#bookmarks">Bookmarks</a>
-            {staff && <a href="#dashboard">Dashboard</a>}
+            <a href="#profile">Profile</a>
+            {staff && <a href={`#${user.role}`}>Dashboard</a>}
             <span className="meta">{user.username}</span>
             <button className="secondary" onClick={signOut}>Sign out</button>
           </> : !loading && <><a href="#login">Sign in</a><a href="#register">Register</a></>}

@@ -18,7 +18,7 @@ BEGIN
 END
 $$;
 
-GRANT SELECT (doc_id,scheme_id,title,issue_date,source_type,version_status,superseded_by,state,category,department)
+GRANT SELECT (doc_id,scheme_id,title,issue_date,source_type,version_status,superseded_by,state,category,department,regions)
     ON e3_indexed_document TO team06_e2;
 GRANT SELECT ON e3_indexed_document TO team06_e4;
 GRANT SELECT (doc_id,file_path,source_type) ON document TO team06_e1;

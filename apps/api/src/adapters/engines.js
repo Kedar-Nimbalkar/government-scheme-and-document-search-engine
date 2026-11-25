@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { CONTRACT_VERSION, INTERNAL_ENDPOINTS } from '../../../packages/contracts/v2/http.js';
-import { workspace } from './config.js';
-import { ApiError, invalid, unavailable } from './http.js';
+import { CONTRACT_VERSION, INTERNAL_ENDPOINTS } from '../../../../packages/contracts/v2/http.js';
+import { workspace } from '../config/index.js';
+import { ApiError, invalid, unavailable } from '../exceptions/api-error.js';
 
 const execute = promisify(execFile);
 

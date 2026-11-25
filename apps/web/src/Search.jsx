@@ -5,6 +5,37 @@ import { Highlighted } from './highlight.js';
 const defaults = { state: '', department: '', category: '' };
 const names = { state: 'State', department: 'Department', category: 'Category' };
 
+const sourceLabels = {
+  SCHEME_ARTICLE: 'Scheme article', SCHEME_PDF: 'Scheme information snapshot',
+  OFFICIAL_PDF: 'Official document', PDF: 'PDF document', CSV: 'Scheme record',
+};
+
+function Article({ docId }) {
+  const [text, setText] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function read() {
+    if (text !== null) { setText(null); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api('/documents/' + docId);
+      if (typeof data.article_text !== 'string') throw new Error('Article unavailable.');
+      setText(data.article_text);
+    } catch (failure) { setError(failure.message); }
+    finally { setLoading(false); }
+  }
+
+  return <div>
+    <button className="secondary" type="button" onClick={read} disabled={loading} aria-expanded={text !== null}>
+      {loading ? 'Loading article...' : text === null ? 'Read Article' : 'Close article'}
+    </button>
+    {error && <p role="alert">{error}</p>}
+    {text !== null && <div className="article-text">{text}</div>}
+  </div>;
+}
+
 function Results({ data, user }) {
   const [notice, setNotice] = useState('');
   async function bookmark(body) {
@@ -18,16 +49,23 @@ function Results({ data, user }) {
     {data.results.map((hit) => (
       <article className="panel result" key={hit.passage_id}>
         <h2>{hit.title || 'Title unavailable'}</h2>
+        <p><strong className="source-label">{sourceLabels[hit.source_type] ?? "Source unavailable"}</strong></p>
         <p className="meta">{hit.scheme_name || 'Scheme unavailable'}</p>
         <p><Highlighted text={hit.snippet} spans={hit.match_spans} /></p>
         <dl className="metadata">
           <div><dt>Department</dt><dd>{hit.department ?? 'Unavailable'}</dd></div>
-          <div><dt>State</dt><dd>{hit.state ?? 'Unavailable'}</dd></div>
+          <div><dt>State</dt><dd>{hit.regions?.length ? hit.regions.join(', ') : hit.state ?? 'Unavailable'}</dd></div>
           <div><dt>Category</dt><dd>{hit.category ?? 'Unavailable'}</dd></div>
           <div><dt>Issue date</dt><dd>{hit.issue_date ?? 'Unavailable'}</dd></div>
-          <div><dt>Page</dt><dd>{hit.page_no ?? 'Unavailable'}</dd></div>
+          {hit.page_no != null && <div><dt>Page</dt><dd>{hit.page_no}</dd></div>}
           <div><dt>Relevance</dt><dd>{hit.score.toFixed(3)}</dd></div>
         </dl>
+        {!!hit.source_references?.length && <details>
+          <summary>Source references</summary>
+          <ul>{hit.source_references.filter((url) => /^https?:\/\//i.test(url)).map((url) =>
+            <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul>
+        </details>}
+        {hit.source_type === 'SCHEME_ARTICLE' && <Article docId={hit.doc_id} />}
         <div className="actions">
           {hit.pdf_url && <a className="button secondary" href={pdfPage(hit.pdf_url, hit.page_no)} target="_blank" rel="noreferrer">Open PDF</a>}
           {user ? <>
