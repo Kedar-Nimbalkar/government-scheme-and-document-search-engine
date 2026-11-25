@@ -1,0 +1,362 @@
+{
+  "documents": [
+    {
+      "label": "rural",
+      "doc_id": "11111111-1111-4111-8111-000000000001",
+      "scheme_id": "22222222-2222-4222-8222-000000000001",
+      "title": "Synthetic rural",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2025-01-15",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant grant for rural families."
+        }
+      ]
+    },
+    {
+      "label": "coastal",
+      "doc_id": "11111111-1111-4111-8111-000000000002",
+      "scheme_id": "22222222-2222-4222-8222-000000000002",
+      "title": "Synthetic coastal",
+      "state": "Goa",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2024-04-02",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant for coastal families."
+        }
+      ]
+    },
+    {
+      "label": "separated",
+      "doc_id": "11111111-1111-4111-8111-000000000003",
+      "scheme_id": "22222222-2222-4222-8222-000000000003",
+      "title": "Synthetic separated",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2024-05-01",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing support grant for families."
+        }
+      ]
+    },
+    {
+      "label": "water",
+      "doc_id": "11111111-1111-4111-8111-000000000004",
+      "scheme_id": "22222222-2222-4222-8222-000000000004",
+      "title": "Synthetic water",
+      "state": "Goa",
+      "category": "Utilities",
+      "department": "Water Department",
+      "issue_date": "2023-01-01",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Water subsidy for rural homes."
+        }
+      ]
+    },
+    {
+      "label": "boundary",
+      "doc_id": "11111111-1111-4111-8111-000000000005",
+      "scheme_id": "22222222-2222-4222-8222-000000000005",
+      "title": "Synthetic boundary",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Grant funds for housing"
+        },
+        {
+          "page_no": 2,
+          "text": "grant eligibility starts tomorrow"
+        }
+      ]
+    },
+    {
+      "label": "scholarship",
+      "doc_id": "11111111-1111-4111-8111-000000000006",
+      "scheme_id": "22222222-2222-4222-8222-000000000006",
+      "title": "Synthetic scholarship",
+      "state": "Karnataka",
+      "category": "Education",
+      "department": "Education Department",
+      "issue_date": "2024-03-15",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Scholarship grant application opens today."
+        }
+      ]
+    },
+    {
+      "label": "unknown",
+      "doc_id": "11111111-1111-4111-8111-000000000007",
+      "scheme_id": "22222222-2222-4222-8222-000000000007",
+      "title": "Synthetic unknown",
+      "state": null,
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant for rural families."
+        }
+      ]
+    },
+    {
+      "label": "tie-a",
+      "doc_id": "11111111-1111-4111-8111-000000000008",
+      "scheme_id": "22222222-2222-4222-8222-000000000008",
+      "title": "Synthetic tie-a",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2025-01-10",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant for urban families."
+        }
+      ]
+    },
+    {
+      "label": "tie-b",
+      "doc_id": "11111111-1111-4111-8111-000000000009",
+      "scheme_id": "22222222-2222-4222-8222-000000000009",
+      "title": "Synthetic tie-b",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2025-01-10",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant for urban families."
+        }
+      ]
+    },
+    {
+      "label": "tie-unknown",
+      "doc_id": "11111111-1111-4111-8111-000000000010",
+      "scheme_id": "22222222-2222-4222-8222-000000000010",
+      "title": "Synthetic tie-unknown",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Housing grant for urban families."
+        }
+      ]
+    },
+    {
+      "label": "clinic",
+      "doc_id": "11111111-1111-4111-8111-000000000011",
+      "scheme_id": "22222222-2222-4222-8222-000000000011",
+      "title": "Synthetic clinic",
+      "state": "Goa",
+      "category": "Health",
+      "department": "Health Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Clinic care and medicine scheme."
+        }
+      ]
+    },
+    {
+      "label": "pending",
+      "doc_id": "11111111-1111-4111-8111-000000000012",
+      "scheme_id": "22222222-2222-4222-8222-000000000012",
+      "title": "Synthetic pending",
+      "state": "Karnataka",
+      "category": "Health",
+      "department": "Health Department",
+      "issue_date": null,
+      "indexed": false,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Clinic care and medicine scheme."
+        }
+      ]
+    },
+    {
+      "label": "utf16",
+      "doc_id": "11111111-1111-4111-8111-000000000013",
+      "scheme_id": "22222222-2222-4222-8222-000000000013",
+      "title": "Synthetic utf16",
+      "state": "Karnataka",
+      "category": "Housing",
+      "department": "Housing Department",
+      "issue_date": "2025-02-01",
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "🏠 Housing grant for ಕನ್ನಡ families and हिंदी learners."
+        }
+      ]
+    },
+    {
+      "label": "csv",
+      "doc_id": "11111111-1111-4111-8111-000000000014",
+      "scheme_id": "22222222-2222-4222-8222-000000000014",
+      "title": "Synthetic csv",
+      "state": "Karnataka",
+      "category": "Education",
+      "department": "Education Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "CSV",
+      "passages": [
+        {
+          "page_no": null,
+          "text": "Education bursary students."
+        }
+      ]
+    },
+    {
+      "label": "water-repeat",
+      "doc_id": "11111111-1111-4111-8111-000000000015",
+      "scheme_id": "22222222-2222-4222-8222-000000000015",
+      "title": "Synthetic water-repeat",
+      "state": "Goa",
+      "category": "Utilities",
+      "department": "Water Department",
+      "issue_date": null,
+      "indexed": true,
+      "source_type": "PDF",
+      "passages": [
+        {
+          "page_no": 1,
+          "text": "Water water water grant."
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "query": "\"housing grant\"",
+      "labels": [
+        "rural",
+        "coastal",
+        "unknown",
+        "tie-a",
+        "tie-b",
+        "tie-unknown",
+        "utf16"
+      ]
+    },
+    {
+      "query": "housing OR water AND subsidy",
+      "labels": [
+        "rural",
+        "coastal",
+        "separated",
+        "water",
+        "boundary",
+        "unknown",
+        "tie-a",
+        "tie-b",
+        "tie-unknown",
+        "utf16"
+      ]
+    },
+    {
+      "query": "(housing OR water) AND subsidy",
+      "labels": [
+        "water"
+      ]
+    },
+    {
+      "query": "NOT grant",
+      "filters": {
+        "state": " ｋＡＲＮＡＴＡＫＡ "
+      },
+      "labels": [
+        "csv"
+      ]
+    },
+    {
+      "query": "\"housing grant\"",
+      "filters": {
+        "state": "Karnataka",
+        "category": "housing",
+        "department": "  housing   department "
+      },
+      "labels": [
+        "rural",
+        "tie-a",
+        "tie-b",
+        "tie-unknown",
+        "utf16"
+      ]
+    },
+    {
+      "query": "\"housing grant\"",
+      "filters": {
+        "state": "Goa",
+        "category": "Education"
+      },
+      "labels": []
+    },
+    {
+      "query": "housing AND (water",
+      "labels": [
+        "rural",
+        "coastal",
+        "separated",
+        "water",
+        "boundary",
+        "unknown",
+        "tie-a",
+        "tie-b",
+        "tie-unknown",
+        "utf16",
+        "water-repeat"
+      ],
+      "warning": "BOOLEAN_FALLBACK"
+    }
+  ]
+}

@@ -1,6 +1,15 @@
 """E3's read-only SQL interface for E2. Inject a PostgreSQL DB-API connection."""
 
+import unicodedata
 from uuid import UUID
+
+FILTER_FIELDS = ("state", "department", "category")
+
+
+def normalize_filter(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return " ".join(unicodedata.normalize("NFKC", value).casefold().split()) or None
 
 
 class MetadataRepository:
@@ -12,17 +21,32 @@ class MetadataRepository:
     def get_matching_docs(self, filters: dict) -> set[str]:
         if not self.committed_doc_ids:
             return set()
+        committed = list(self.committed_doc_ids)
+        active = {field: value for field in FILTER_FIELDS if (value := normalize_filter(filters.get(field))) is not None}
+        selected = dict.fromkeys(FILTER_FIELDS)
         with self.connection.cursor() as cursor:
+            if active:
+                cursor.execute(
+                    """SELECT DISTINCT state, department, category FROM e3_indexed_document
+                       WHERE doc_id = ANY(%s::uuid[])""", (committed,),
+                )
+                acceptable = {field: set() for field in active}
+                for row in cursor.fetchall():
+                    for field, actual in zip(FILTER_FIELDS, row, strict=True):
+                        if field in active and normalize_filter(actual) == active[field]:
+                            acceptable[field].add(actual)
+                if any(not values for values in acceptable.values()):
+                    return set()
+                selected.update({field: sorted(values) for field, values in acceptable.items()})
             cursor.execute(
                 """
                 SELECT doc_id FROM e3_indexed_document
                 WHERE doc_id = ANY(%(committed)s::uuid[])
-                  AND (%(state)s::text IS NULL OR state = %(state)s)
-                  AND (%(department)s::text IS NULL OR department = %(department)s)
-                  AND (%(category)s::text IS NULL OR category = %(category)s)
+                  AND (%(state)s::text[] IS NULL OR state = ANY(%(state)s::text[]))
+                  AND (%(department)s::text[] IS NULL OR department = ANY(%(department)s::text[]))
+                  AND (%(category)s::text[] IS NULL OR category = ANY(%(category)s::text[]))
                 """,
-                {"committed": list(self.committed_doc_ids),
-                 **{name: filters.get(name) for name in ("state", "department", "category")}},
+                {"committed": committed, **selected},
             )
             return {str(row[0]) for row in cursor.fetchall()}
 

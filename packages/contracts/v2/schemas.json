@@ -321,7 +321,8 @@
       "properties": {
         "query": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "maxLength": 512
         },
         "filters": {
           "$ref": "#/$defs/filters"
@@ -329,13 +330,13 @@
         "k": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 9007199254740991,
+          "maximum": 50,
           "default": 10
         },
         "page": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 9007199254740991,
+          "maximum": 1000,
           "default": 1
         }
       },

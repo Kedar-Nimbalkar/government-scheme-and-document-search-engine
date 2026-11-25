@@ -102,8 +102,9 @@ details = metadata.get_metadata(list(allowed))
 
 Use the same validated snapshot for retrieval and metadata eligibility.
 Eligibility is the intersection of the captured E1 inventory and
-PostgreSQL `INDEXED` rows. Filters combine with AND, and SQL NULL attributes
-are excluded by active filters. Historical documents remain eligible when
+PostgreSQL `INDEXED` rows. Filters combine with AND over NFKC, casefolded,
+whitespace-normalized values. SQL NULL attributes are excluded by active filters.
+Historical documents remain eligible when
 indexed. Unknown metadata remains null. PostgreSQL stores metadata and
 job state while E2 reads postings and passage text from the index files.
 

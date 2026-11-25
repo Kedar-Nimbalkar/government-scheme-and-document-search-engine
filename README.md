@@ -13,7 +13,7 @@ Copy-Item .env.example .env
 npm.cmd ci
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -r engines/e2/requirements.txt
 ```
 
 Run these commands in three separate terminals from the same directory.
@@ -55,6 +55,6 @@ database or index readiness. Local data and credentials are ignored by Git.
 ```powershell
 npm.cmd test
 npm.cmd run build
-python -m pip install -r engines/e1/requirements-dev.txt -r db/e3/requirements.txt
+python -m pip install -r db/e3/requirements.txt -r engines/e2/requirements-dev.txt
 python -m pytest -q
 ```

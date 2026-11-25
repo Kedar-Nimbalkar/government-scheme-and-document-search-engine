@@ -11,7 +11,8 @@
       "path": "/internal/search",
       "success": 200,
       "response": "response",
-      "request": "request"
+      "request": "request",
+      "response_headers": ["X-Search-Warning"]
     },
     "autocomplete": {
       "method": "GET",

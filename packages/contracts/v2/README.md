@@ -41,9 +41,14 @@ Express owns all public routes. E2 receives `POST /internal/search` and
 `GET /internal/autocomplete` over loopback. Express translates public
 `q` to `query` and the three named filters to `filters`. An omitted page
 defaults to 1 and the public page size is 10. E3 combines supplied filters with
-AND using exact field values. E2 filters before ranking, reports total matching
+AND after NFKC, casefold, and whitespace normalization. E2 filters before ranking, reports total matching
 passages before pagination, and returns the searched manifest generation.
 An empty search is HTTP 200 with an empty list and total 0.
+
+Malformed Boolean syntax produces keyword results with the response header
+`X-Search-Warning: BOOLEAN_FALLBACK`. Express can forward this header to the
+browser. The search limits are 512 characters, 64 lexical tokens, at most
+50 results per page, and at most 1,000 retained ranks.
 
 Both search responses contain plain snippet text, normalized matched terms and
 UTF-16 match spans relative to the returned snippet. E2 rebases spans when it
