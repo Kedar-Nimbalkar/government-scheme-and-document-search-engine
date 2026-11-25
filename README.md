@@ -38,12 +38,15 @@ migrations in order. With Compose defaults, run only the files that are pending:
 Get-Content -Raw db/migrations/001_foundation.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 Get-Content -Raw db/migrations/002_contract_v2.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 Get-Content -Raw db/migrations/003_e3_metadata.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
+Get-Content -Raw db/migrations/004_e3_services.sql | docker compose exec -T postgres psql -U team06 -d team06 -v ON_ERROR_STOP=1
 ```
 
 With local PostgreSQL use `psql <database-url> -v ON_ERROR_STOP=1 -f <migration-file>`
 for each pending file.
 See the [E3 runbook](db/e3/README.md) for development schemas, seed accounts,
 and reviewed PDF import.
+See the [persistence handoff](docs/sprint-2-e3-persistence.md) for runtime
+role provisioning and E1, E2, and E4 connections.
 The current health check reports service reachability. It does not check
 database or index readiness. Local data and credentials are ignored by Git.
 

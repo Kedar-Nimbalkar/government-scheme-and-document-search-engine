@@ -64,9 +64,11 @@ Express rejects an incompatible internal service version.
 
 E3 owns migrations, the Python [read repository](../../search_shared/search_shared/metadata.py)
 and [prepared job statements](jobs.sql). E2 calls `get_matching_docs(filters)`
-and `get_metadata(doc_ids)` through a read-only PostgreSQL account. Filter and
-metadata inputs are bound parameters. Align each search's index generation
-with its metadata reads where applicable.
+and `get_metadata(doc_ids)` through a read-only PostgreSQL account. Supply
+`manifest["committed_doc_ids"]` from the same validated snapshot used for
+retrieval. Only documents in that inventory with an INDEXED job are eligible,
+including available historical versions. See the
+[persistence handoff](../../../docs/sprint-2-e3-persistence.md) for roles and connections.
 
 E4 validates and stages uploads under PDF_ROOT, then inserts document and job
 rows in one database transaction. Return 202 after durable acceptance.

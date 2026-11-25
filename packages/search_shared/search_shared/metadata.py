@@ -4,39 +4,39 @@ from uuid import UUID
 
 
 class MetadataRepository:
-    def __init__(self, connection):
+    def __init__(self, connection, committed_doc_ids):
+        """Bind metadata reads to the inventory of one validated E1 snapshot."""
         self.connection = connection
+        self.committed_doc_ids = frozenset(str(UUID(str(value))) for value in committed_doc_ids)
 
     def get_matching_docs(self, filters: dict) -> set[str]:
+        if not self.committed_doc_ids:
+            return set()
         with self.connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT d.doc_id
-                FROM document d
-                JOIN scheme s USING (scheme_id)
-                JOIN department p USING (dept_id)
-                WHERE (%(state)s::text IS NULL OR s.state = %(state)s)
-                  AND (%(department)s::text IS NULL OR p.dept_name = %(department)s)
-                  AND (%(category)s::text IS NULL OR s.category = %(category)s)
+                SELECT doc_id FROM e3_indexed_document
+                WHERE doc_id = ANY(%(committed)s::uuid[])
+                  AND (%(state)s::text IS NULL OR state = %(state)s)
+                  AND (%(department)s::text IS NULL OR department = %(department)s)
+                  AND (%(category)s::text IS NULL OR category = %(category)s)
                 """,
-                {name: filters.get(name) for name in ("state", "department", "category")},
+                {"committed": list(self.committed_doc_ids),
+                 **{name: filters.get(name) for name in ("state", "department", "category")}},
             )
             return {str(row[0]) for row in cursor.fetchall()}
 
     def get_metadata(self, doc_ids: list[str]) -> dict[str, dict]:
-        if not doc_ids:
+        eligible = self.committed_doc_ids.intersection(str(UUID(str(value))) for value in doc_ids)
+        if not eligible:
             return {}
         with self.connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT d.doc_id, d.scheme_id, d.title, p.dept_name AS department,
-                       d.issue_date, d.source_type, d.version_status, d.superseded_by
-                FROM document d
-                JOIN scheme s USING (scheme_id)
-                JOIN department p USING (dept_id)
-                WHERE d.doc_id = ANY(%s::uuid[])
+                SELECT doc_id, scheme_id, title, department, issue_date, source_type, version_status, superseded_by
+                FROM e3_indexed_document WHERE doc_id = ANY(%s::uuid[])
                 """,
-                ([str(UUID(value)) for value in doc_ids],),
+                (list(eligible),),
             )
             return {
                 str(doc_id): {

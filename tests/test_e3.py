@@ -3,11 +3,13 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from search_shared.index_reader import read_snapshot
 from search_shared.metadata import MetadataRepository
 
 from db.e3.__main__ import seed
 from db.e3.corpus import import_verified, load_catalog, scan
 from engines.e1.jobs import open_jobs
+from engines.e1.parallel import run_parallel
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "fixtures" / "e1-synthetic"
@@ -53,6 +55,8 @@ def test_inventory_quarantines_unverified_and_detects_duplicates(tmp_path):
 
 
 def test_import_deduplication_count_reconciliation_and_e1_compatibility(postgres, tmp_path):
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
     db, url = postgres
     dataset, entries = load_catalog(CATALOG)
     pilot = import_verified(db, SOURCE, tmp_path, dataset, entries, limit=1)
@@ -74,23 +78,29 @@ def test_import_deduplication_count_reconciliation_and_e1_compatibility(postgres
     assert (tmp_path / stored[1]).read_bytes() == (SOURCE / "digital-and-mixed.pdf").read_bytes()
     assert stored[2:] == (None, None, "UNKNOWN", "synthetic")
 
-    metadata = MetadataRepository(db)
     doc_id = checked["records"][0]["doc_id"]
-    assert metadata.get_matching_docs({"state": "Synthetic State", "category": "Housing"}) == {doc_id}
-    assert metadata.get_matching_docs({"state": "' OR TRUE --"}) == set()
-    assert metadata.get_metadata([doc_id])[doc_id]["superseded"] is None
+    metadata = MetadataRepository(db, [doc_id])
+    assert metadata.get_matching_docs({"state": "Synthetic State"}) == set()
+    assert metadata.get_metadata([doc_id]) == {}
 
     before = db.execute("SELECT updated_at FROM ingestion_job").fetchone()[0]
-    with open_jobs(url, 5, 0) as jobs:
-        assert jobs.acquire_writer()
-        job_id, claimed_doc, attempt, lease, _, _, _ = jobs.claim()
-        assert str(claimed_doc) == doc_id and attempt == 1
-        assert jobs.begin(job_id, lease)
-        assert jobs.finish(job_id, lease)
+    db.execute((ROOT / "db" / "runtime-roles.sql").read_text(encoding="utf-8"), prepare=False)
+    options = conninfo_to_dict(url)["options"]
+    worker_url = make_conninfo(url, options=f"{options} -c role=team06_e1")
+    index_root = tmp_path / "index"
+    outcome = run_parallel(index_root, database_url=worker_url, pdf_root=tmp_path)
+    assert [entry["status"] for entry in outcome["documents"]] == ["INDEXED"]
+    manifest, _ = read_snapshot(index_root)
+    assert manifest["committed_doc_ids"] == [doc_id]
     assert db.execute("SELECT status,updated_at > %s,error FROM ingestion_job", (before,)).fetchone() == (
         "INDEXED", True, None,
     )
     assert db.execute("SELECT version_status FROM document").fetchone()[0] == "UNKNOWN"
+    metadata = MetadataRepository(db, manifest["committed_doc_ids"])
+    assert metadata.get_matching_docs({"state": "Synthetic State", "category": "Housing"}) == {doc_id}
+    assert metadata.get_matching_docs({"state": "' OR TRUE --"}) == set()
+    assert metadata.get_metadata([doc_id])[doc_id]["superseded"] is None
+    assert MetadataRepository(db, []).get_matching_docs({}) == set()
 
 
 def test_sql_bookmark_roles_fks_restrict_and_rollback(postgres, tmp_path):
@@ -157,3 +167,63 @@ def test_unresolved_metadata_and_storage_failure_roll_back(postgres, tmp_path):
         import_verified(db, SOURCE, tmp_path, dataset, entries, limit=1)
     for table in ("department", "scheme", "document", "ingestion_job", "document_import", "corpus_dataset"):
         assert db.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0
+
+
+def test_restricted_job_claims_recovery_and_snapshot_filtered_metadata(postgres):
+    import psycopg
+    from psycopg import errors
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+    db, url = postgres
+    db.execute((ROOT / "db" / "runtime-roles.sql").read_text(encoding="utf-8"), prepare=False)
+    options = conninfo_to_dict(url)["options"]
+    writer_url = make_conninfo(url, options=f"{options} -c role=team06_e1")
+    search_url = make_conninfo(url, options=f"{options} -c role=team06_e2")
+
+    dept = db.execute("INSERT INTO department(dept_name,level) VALUES ('Housing','State') RETURNING dept_id").fetchone()[0]
+    # Simulate a legacy unknown state to exercise SQL NULL comparison semantics.
+    db.execute("ALTER TABLE scheme ALTER COLUMN state DROP NOT NULL")
+    docs = {}
+    for label, state, status in (("known", "Karnataka", "QUEUED"), ("unknown", None, "QUEUED"),
+                                 ("foreign", "Goa", "INDEXED"), ("absent", "Karnataka", "INDEXED")):
+        scheme_id = db.execute("""
+            INSERT INTO scheme(dept_id,scheme_name,category,state) VALUES (%s,%s,'Housing',%s) RETURNING scheme_id
+        """, (dept, label, state)).fetchone()[0]
+        doc_id = db.execute("""
+            INSERT INTO document(scheme_id,title,source_type) VALUES (%s,%s,'CSV') RETURNING doc_id
+        """, (scheme_id, label)).fetchone()[0]
+        db.execute("INSERT INTO ingestion_job(doc_id,status) VALUES (%s,%s)", (doc_id, status))
+        docs[label] = str(doc_id)
+
+    with open_jobs(writer_url, 10, 0) as first, open_jobs(writer_url, 10, 0) as second:
+        with first.connection.transaction():
+            first_job, first_doc, _, _, _, _, _ = first.claim()
+            # The first row is still locked while another transaction claims.
+            second_job, second_doc, _, lease, _, _, _ = second.claim()
+            assert first_doc != second_doc
+            assert second.claim() is None
+            assert second.begin(second_job, lease)
+            assert second.finish(second_job, lease)
+        db.execute("UPDATE ingestion_job SET lease_until=now()-interval '1 second' WHERE job_id=%s", (first_job,))
+        assert first.acquire_writer()
+        assert first.reconcile(set()) == [{"doc_id": str(first_doc), "job_id": str(first_job), "status": "QUEUED"}]
+        retried, _, attempts, lease, _, _, _ = first.claim()
+        assert retried == first_job and attempts == 2
+        assert first.begin(retried, lease)
+        assert first.finish(retried, lease)
+
+    db.execute("UPDATE document SET version_status='SUPERSEDED' WHERE doc_id=%s", (docs["known"],))
+    event = db.execute("SELECT details FROM operational_log WHERE event='INGESTION_ERROR'").fetchone()[0]
+    assert event["reason"] == "LEASE_EXPIRED" and event["status"] == "QUEUED"
+    captured = [docs[name] for name in ("known", "unknown", "foreign")]
+    with psycopg.connect(search_url, autocommit=True) as reader:
+        metadata = MetadataRepository(reader, captured)
+        assert metadata.get_matching_docs({}) == set(captured)
+        assert metadata.get_matching_docs({"state": "Karnataka", "department": "Housing"}) == {docs["known"]}
+        assert metadata.get_matching_docs({"state": "Kerala"}) == set()
+        result = metadata.get_metadata(list(docs.values()) + [str(uuid4())])
+        assert set(result) == set(captured)
+        assert result[docs["known"]]["superseded"] is True
+        assert result[docs["unknown"]]["issue_date"] is None
+        with pytest.raises(errors.InsufficientPrivilege):
+            reader.execute("SELECT password_hash FROM app_user")

@@ -9,7 +9,7 @@ python -m pip install -r requirements.txt -r db/e3/requirements.txt
 
 ## Migrate or reset development data
 
-For a configured database, apply pending migrations 001, 002, and 003 in
+For a configured database, apply pending migrations 001 through 004 in
 order with `psql -v ON_ERROR_STOP=1`. For a local scratch database, set
 `DATABASE_URL` to an explicit loopback URL and use:
 
