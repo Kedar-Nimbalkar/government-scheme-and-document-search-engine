@@ -4,7 +4,8 @@
     "health": {
       "method": "GET",
       "path": "/health",
-      "success": 200
+      "success": 200,
+      "response": "health"
     },
     "search": {
       "method": "POST",

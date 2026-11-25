@@ -1,10 +1,10 @@
 """Boolean parsing and sorted-set evaluation over positional postings."""
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar
 
-from search_shared.tokenizer import tokenize
+from search_shared.tokenizer import tokenize, tokenize_with_spans
 
 MAX_QUERY_LENGTH = 512
 MAX_QUERY_TOKENS = 64
@@ -25,6 +25,9 @@ class BooleanSyntax(ValueError):
 @dataclass(frozen=True)
 class Atom:
     terms: tuple[str, ...]
+    quoted: bool = False
+    acronym: bool = False
+    source_span: tuple[int, int] | None = field(default=None, compare=False)
 
 
 Token = Atom | str
@@ -58,16 +61,25 @@ def _lex(query: str) -> tuple[list[Token], list[str], bool]:
             count += 1
         else:
             phrase = raw.startswith('"')
-            terms = tokenize(raw[1:-1] if phrase else raw)
+            positioned = [] if phrase else tokenize_with_spans(raw)
+            terms = tokenize(raw[1:-1]) if phrase else [term for term, _ in positioned]
             keywords.extend(terms)
             count += max(1, len(terms))
             if phrase:
                 if not terms:
                     malformed = True
                 else:
-                    tokens.append(Atom(tuple(terms)))
+                    tokens.append(Atom(tuple(terms), quoted=True))
             else:
-                tokens.extend(Atom((term,)) for term in terms)
+                boundaries = {0: match.start()}
+                offset = 0
+                for index, char in enumerate(raw, match.start() + 1):
+                    offset += 2 if ord(char) > 0xFFFF else 1
+                    boundaries[offset] = index
+                for term, span in positioned:
+                    start, end = boundaries[span["start"]], boundaries[span["end"]]
+                    tokens.append(Atom((term,), acronym=len(term) > 1 and query[start:end].isupper(),
+                                       source_span=(start, end) if len(terms) == 1 else None))
         if count > MAX_QUERY_TOKENS:
             raise InvalidQuery(f"Query exceeds {MAX_QUERY_TOKENS} tokens")
     return tokens, keywords, malformed
@@ -118,7 +130,7 @@ def _postfix(tokens: list[Token]) -> list[Token]:
     return output
 
 
-def _positive_atoms(postfix: list[Token]) -> set[Atom]:
+def positive_atoms(postfix: list[Token]) -> set[Atom]:
     stack: list[tuple[set[Atom], set[Atom]]] = []
     for token in postfix:
         if isinstance(token, Atom):
@@ -136,7 +148,13 @@ def _positive_atoms(postfix: list[Token]) -> set[Atom]:
 def parse(query: str) -> Query:
     if not isinstance(query, str) or not query.strip() or len(query) > MAX_QUERY_LENGTH:
         raise InvalidQuery(f"Query must contain 1–{MAX_QUERY_LENGTH} characters")
-    tokens, keywords, malformed = _lex(query)
+    try:
+        query.encode("utf-8")
+        tokens, keywords, malformed = _lex(query)
+    except InvalidQuery:
+        raise
+    except ValueError as error:
+        raise InvalidQuery("Query text could not be normalized") from error
     try:
         if malformed:
             raise BooleanSyntax
@@ -147,8 +165,8 @@ def parse(query: str) -> Query:
             postfix.append(Atom((keyword,)))
             if len(postfix) > 1:
                 postfix.append("OR")
-        return Query(postfix, _positive_atoms(postfix), "BOOLEAN_FALLBACK")
-    return Query(postfix, _positive_atoms(postfix))
+        return Query(postfix, positive_atoms(postfix), "BOOLEAN_FALLBACK")
+    return Query(postfix, positive_atoms(postfix))
 
 
 def sorted_merge(left: list[T], right: list[T], operator: str) -> list[T]:

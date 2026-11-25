@@ -1,5 +1,6 @@
 import asyncio
 import json
+import hashlib
 import math
 import os
 import random
@@ -17,6 +18,8 @@ from engines.e1.parallel import run_parallel
 from engines.e1.reference import compile_segment, load_pdf_jobs
 from engines.e1.snapshot import SnapshotWriter, index_sources
 from engines.e2 import main as api
+from engines.e2.assistance import Trie
+from engines.e2.budget import Budget
 from engines.e2.query import Atom, InvalidQuery, parse
 from engines.e2.ranking import TopK, snippet
 from engines.e2.search import SearchEngine, SnapshotCache
@@ -30,7 +33,7 @@ def http_search():
     with asyncio.Runner() as runner:
         client = AsyncClient(transport=ASGITransport(app=api.app), base_url="http://e2.test")
         try:
-            yield lambda **kwargs: runner.run(client.post("/internal/search", **kwargs))
+            yield lambda path="/internal/search", method="POST", **kwargs: runner.run(client.request(method, path, **kwargs))
         finally:
             runner.run(client.aclose())
 
@@ -50,9 +53,7 @@ class FixtureMetadata:
         return {identifier: self.documents[identifier] for identifier in doc_ids}
 
 
-@pytest.fixture
-def labelled(tmp_path):
-    documents = FIXTURE["documents"]
+def fixture_engine(tmp_path, documents):
     parsed = [
         (doc["doc_id"], [(item["page_no"], item["text"], tokenize_with_spans(item["text"])) for item in doc["passages"]])
         for doc in documents
@@ -61,10 +62,30 @@ def labelled(tmp_path):
     SnapshotWriter(tmp_path).append(segment, {doc["doc_id"] for doc in documents}, next_id)
 
     @contextmanager
-    def metadata(committed):
+    def metadata(committed, _budget):
         yield FixtureMetadata(documents, committed)
 
     return SearchEngine(SnapshotCache(tmp_path), metadata)
+
+
+@pytest.fixture
+def labelled(tmp_path):
+    return fixture_engine(tmp_path, FIXTURE["documents"])
+
+
+@pytest.fixture
+def assistance(tmp_path):
+    texts = [
+        "Unified Mobile Application for New-age Governance rural access.",
+        "UMANG coastal access.",
+        "Health care grant. School information.",
+        "Healthcare rural grant.",
+        "General housing grant.",
+    ]
+    return fixture_engine(tmp_path, [
+        {**FIXTURE["documents"][index], "passages": [{"page_no": 1, "text": text}]}
+        for index, text in enumerate(texts)
+    ])
 
 
 @pytest.mark.parametrize("case", FIXTURE["cases"], ids=[case["query"] for case in FIXTURE["cases"]])
@@ -146,7 +167,7 @@ def test_known_score_shared_fixture_and_phrase_repetition():
     [doc_id] = manifest["committed_doc_ids"]
 
     @contextmanager
-    def metadata(_):
+    def metadata(_, _budget):
         yield FixtureMetadata([{"indexed": True, "doc_id": doc_id}], [doc_id])
 
     engine = SearchEngine(snapshot, metadata)
@@ -155,6 +176,67 @@ def test_known_score_shared_fixture_and_phrase_repetition():
     assert engine.search('"housing housing"')[0]["total"] == 0
     with pytest.raises(InvalidQuery):
         parse("a " * 65)
+
+
+def test_trie_prefix_frequency_ties_bounded_and_unicode(labelled):
+    terms = dict(zip(("grab", "grace", "grade", "grain", "grant", "grape", "graph", "grass", "gravel"), range(9)))
+    terms["grab"] = terms["gravel"]
+    trie = Trie(terms)
+    assert trie.suggest("gr") == ["grab", "gravel", "grass", "graph", "grape", "grant", "grain", "grade"]
+    assert trie.suggest("unknown") == []
+    assert labelled.autocomplete("ＫＡＮＮＡＤＡ") == []
+    assert labelled.autocomplete("for ＨＯＵ") == ["housing"]
+    assert labelled.autocomplete("ಕ") == ["ಕನ್ನಡ"]
+    assert labelled.autocomplete("हि") == ["हिंदी"]
+
+
+def test_typo_certainty_severe_suggestion_and_no_invented_term(assistance):
+    exact = assistance.search("housing AND grant")[0]
+    corrected = assistance.search("housng AND grant")[0]
+    assert corrected["results"] == exact["results"]
+    assert corrected["did_you_mean"] == "housing AND grant"
+    punctuated = assistance.search('(🏠housng! AND "grant")')[0]
+    assert punctuated["did_you_mean"] == '(🏠housing! AND "grant")'
+    severe = assistance.search("schmlog")[0]
+    assert severe["total"] == 0 and severe["did_you_mean"] == "school"
+    unrecognized = assistance.search("qqqqqqqq")[0]
+    assert unrecognized["total"] == 0 and unrecognized["did_you_mean"] is None
+    for protected in ('"housng" AND grant', '"housng grant"', 'HOUSNG AND grant'):
+        result = assistance.search(protected)[0]
+        assert result["total"] == 0 and result["did_you_mean"] is None
+    ambiguous = Trie({"form": 2, "farm": 8}).correct("firm", lambda: None)
+    assert ambiguous.term == "farm" and not ambiguous.automatic
+
+
+def test_aliases_are_grouped_in_boolean_context_and_quotes_are_literal(assistance):
+    def titles(query):
+        return {item["title"] for item in assistance.search(query)[0]["results"]}
+
+    assert titles("UMANG") == {"Synthetic rural", "Synthetic coastal"}
+    assert titles("rural AND UMANG") == {"Synthetic rural"}
+    assert titles("NOT UMANG") == {"Synthetic separated", "Synthetic water", "Synthetic boundary"}
+    assert titles('"UMANG"') == {"Synthetic coastal"}
+    assert titles("healthcare") == {"Synthetic separated", "Synthetic water"}
+    assert titles('"healthcare"') == {"Synthetic water"}
+    assert titles('"health care"') == {"Synthetic separated"}
+    assert titles("ZZZHQ") == set()
+
+
+def test_typed_autocomplete_and_request_timeout(labelled, monkeypatch):
+    monkeypatch.setattr(api, "get_engine", lambda: labelled)
+    with http_search() as request:
+        health = request("/health", "GET")
+        assert health.json() == {"status": "ok", "service": "e2", "contract_version": 2}
+        suggestion = request("/internal/autocomplete", "GET", params={"prefix": "ｈｏｕ"})
+        assert suggestion.status_code == 200 and suggestion.json() == {"suggestions": ["housing"]}
+        for prefix in ("zzz", "!!!"):
+            assert request("/internal/autocomplete", "GET", params={"prefix": prefix}).json() == {"suggestions": []}
+        assert request("/internal/autocomplete", "GET").status_code == 400
+        assert request("/internal/autocomplete", "GET", params={"prefix": "a" * 65}).status_code == 400
+        monkeypatch.setattr(api, "Budget", lambda _seconds: Budget(0))
+        response = request(json={"query": "housing"})
+        assert response.status_code == 504
+        assert response.json()["error"]["code"] == "SEARCH_TIMEOUT"
 
 
 def test_http_fixture_contract_validation_and_warning(labelled, monkeypatch):
@@ -178,6 +260,7 @@ def test_http_fixture_contract_validation_and_warning(labelled, monkeypatch):
             assert rejected.status_code == 400
             assert rejected.json()["error"]["code"] == "INVALID_REQUEST"
         assert post(content="{").status_code == 400
+        assert post(content=b'{"query":"\\ud800 grant"}').status_code == 400
 
 
 def test_real_reader_reload_and_db_unavailable(tmp_path, monkeypatch):
@@ -211,6 +294,10 @@ def test_real_postgres_and_spawned_e1_search(tmp_path, monkeypatch):
     schema = "e2_test_" + uuid4().hex
     fixture = ROOT / "fixtures/e1-synthetic"
     [source] = load_pdf_jobs(fixture / "pdf-jobs.json", fixture)
+    pdf_root = tmp_path / "pdfs"
+    pdf_root.mkdir()
+    (pdf_root / source.pdf_path.name).write_bytes(source.pdf_path.read_bytes())
+    index_root = tmp_path / "index"
     options = f"-c search_path={schema},public"
     with psycopg.connect(database, autocommit=True) as admin:
         admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
@@ -232,10 +319,10 @@ def test_real_postgres_and_spawned_e1_search(tmp_path, monkeypatch):
                 """, (source.scheme_id,)).fetchone()[0]
                 db.execute("INSERT INTO ingestion_job(doc_id,status) VALUES (%s,'INDEXED')", (absent,))
             worker = make_conninfo(database, options=f"{options} -c role=team06_e1")
-            report = run_parallel(tmp_path, workers=2, database_url=worker, pdf_root=fixture)
+            report = run_parallel(index_root, workers=2, database_url=worker, pdf_root=pdf_root)
             assert [entry["status"] for entry in report["documents"]] == ["INDEXED"]
             reader = make_conninfo(database, options=f"{options} -c role=team06_e2")
-            monkeypatch.setenv("INDEX_ROOT", str(tmp_path))
+            monkeypatch.setenv("INDEX_ROOT", str(index_root))
             monkeypatch.setenv("E2_DATABASE_URL", reader)
             api.get_engine.cache_clear()
             with http_search() as post:
@@ -257,6 +344,28 @@ def test_real_postgres_and_spawned_e1_search(tmp_path, monkeypatch):
                     samples.append((time.perf_counter() - started) * 1000)
                 ordered = sorted(samples)
                 print(f"E2 real E1/E3 warm requests: n=20 p50={sum(ordered[9:11])/2:.2f}ms p95={ordered[18]:.2f}ms")
+                before = api.get_engine().snapshots.get()
+                assert post("/internal/autocomplete", "GET", params={"prefix": "guid"}).json() == {"suggestions": []}
+                # Register a second staged PDF through E3's durable job table.
+                original = (ROOT / "fixtures/v1/housing-guidelines.pdf").read_bytes()
+                staged = pdf_root / "housing-guidelines.pdf"
+                staged.write_bytes(original)
+                with psycopg.connect(make_conninfo(database, options=options)) as db:
+                    fresh_doc = db.execute("""
+                        INSERT INTO document(scheme_id,title,source_type,file_path,content_hash)
+                        VALUES (%s,'Synthetic incremental upload','PDF',%s,%s) RETURNING doc_id
+                    """, (source.scheme_id, staged.name, hashlib.sha256(original).hexdigest())).fetchone()[0]
+                    db.execute("INSERT INTO ingestion_job(doc_id) VALUES (%s)", (fresh_doc,))
+                assert post(json={"query": "guidelines"}).json()["total"] == 0
+                run_parallel(index_root, workers=2, database_url=worker, pdf_root=pdf_root)
+                assert post("/internal/autocomplete", "GET", params={"prefix": "guid"}).json() == {
+                    "suggestions": ["guidelines"],
+                }
+                refreshed = post(json={"query": "guidelines"}).json()
+                assert refreshed["generation"] > before.manifest["generation"]
+                assert refreshed["results"][0]["doc_id"] == str(fresh_doc)
+                assert before.trie.suggest("guid") == []
+                assert all((index_root / segment["file"]).is_file() for segment in before.manifest["segments"])
                 monkeypatch.setenv("E2_DATABASE_URL", worker)
                 unavailable = post(json={"query": "housing", "filters": {"state": "Goa"}})
                 assert unavailable.status_code == 503

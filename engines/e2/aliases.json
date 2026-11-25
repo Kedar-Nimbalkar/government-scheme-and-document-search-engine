@@ -1,0 +1,12 @@
+{
+  "umang": {
+    "kind": "acronym",
+    "alternatives": ["Unified Mobile Application for New-age Governance"],
+    "sources": ["https://www.umang.gov.in/landing/aboutus"]
+  },
+  "healthcare": {
+    "kind": "synonym",
+    "alternatives": ["health care"],
+    "sources": ["https://www.pib.gov.in/PressReleasePage.aspx?PRID=2210432&lang=1&reg=6"]
+  }
+}

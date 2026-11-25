@@ -45,6 +45,11 @@ AND after NFKC, casefold, and whitespace normalization. E2 filters before rankin
 passages before pagination, and returns the searched manifest generation.
 An empty search is HTTP 200 with an empty list and total 0.
 
+Autocomplete uses a 1–64-character prefix and returns at most eight
+committed vocabulary terms. Search returns a nullable `did_you_mean`
+string drawn from the same vocabulary. E2 applies curated expansions within
+unquoted operands and preserves quoted search text.
+
 Malformed Boolean syntax produces keyword results with the response header
 `X-Search-Warning: BOOLEAN_FALLBACK`. Express can forward this header to the
 browser. The search limits are 512 characters, 64 lexical tokens, at most
